@@ -367,6 +367,72 @@ body{
   letter-spacing:.08em;cursor:pointer}
 .chk input{accent-color:var(--shu);width:15px;height:15px}
 
+/* ---- オンライン対戦 ---- */
+.netwrap{max-width:860px;margin:0 auto}
+.nethead{text-align:center;margin-bottom:22px}
+.nethead h2{font-size:26px;letter-spacing:.14em;margin:0 0 8px}
+.nethead p{font-size:12.5px;color:var(--mute);letter-spacing:.06em}
+.netstep{display:flex;gap:14px;align-items:flex-start;background:#141926;
+  border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:18px 20px;margin-top:14px}
+.stepnum{flex:none;width:30px;height:30px;border-radius:50%;background:#c8352a;color:#fff;
+  display:grid;place-items:center;font-weight:800;font-size:15px}
+.stepbody{flex:1;min-width:0}
+.stepbody>label{display:block;font-size:12px;color:var(--mute);letter-spacing:.1em;margin-bottom:8px}
+.stepbody input[type=text]{width:100%;max-width:340px;box-sizing:border-box;background:#0c1018;
+  border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:5px;padding:11px 13px;
+  font:inherit;font-size:15px;letter-spacing:.08em}
+.netchoice{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.netchoice{grid-template-columns:1fr}}
+.netcard{background:#0e1220;border:1px solid rgba(255,255,255,.1);border-radius:8px;
+  padding:16px 18px;display:flex;flex-direction:column;gap:11px}
+.netcard h3{margin:0;font-size:15px;letter-spacing:.1em}
+.netcard p{margin:0;font-size:11.5px;line-height:1.9;color:var(--mute)}
+.netcard input{text-align:center;font-size:22px !important;letter-spacing:.35em !important;
+  font-weight:800;max-width:100% !important}
+.netcard .btn{width:100%}
+.netrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+
+.roomhero{text-align:center;background:#141926;border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:20px 18px 16px;margin-top:14px}
+.roomlabel{font-size:11px;color:var(--mute);letter-spacing:.18em}
+.netcode{font-size:52px;font-weight:800;letter-spacing:.4em;color:#ffdf6e;
+  margin:8px 0 6px;text-indent:.4em;user-select:all}
+.roomtip{font-size:11px;color:var(--mute);margin:8px 0 0}
+.roomstate{margin-top:14px;padding:13px 16px;border-radius:8px;text-align:center;
+  font-size:13.5px;font-weight:700;letter-spacing:.06em;line-height:1.8;
+  background:#22301e;border:1px solid #3f6b36;color:#c8efb8}
+.roomband{margin-top:14px;background:#141926;border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:16px 18px}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+@media(max-width:640px){.slots{grid-template-columns:repeat(2,1fr)}}
+.slot{border-radius:8px;padding:13px 8px;text-align:center;min-height:58px;
+  display:flex;flex-direction:column;justify-content:center;gap:5px;
+  background:#0e1220;border:1px solid rgba(255,255,255,.12)}
+.slot .sname{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .srole{font-size:9.5px;letter-spacing:.1em;color:#cdd6ee}
+.slot.hostslot{border-color:#c8a52a;background:#1b1a10}
+.slot.hostslot .srole{color:#ffe089}
+.slot.meslot{outline:2px solid #ffdf6e}
+.slot.empty{border-style:dashed;border-color:rgba(255,255,255,.14);color:var(--mute)}
+.slot.empty .sname{font-weight:600;font-size:11px;color:var(--mute)}
+.roombtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.btn.big{font-size:15px;padding:16px 26px}
+#net-status{display:block;margin-top:12px;font-size:12px;color:#ffb0a6;text-align:center;min-height:1em}
+.netrank{margin:14px 0 0;background:rgba(0,0,0,.25);border-radius:6px;padding:10px 14px}
+.netrank .nr-h{font-size:11px;color:var(--mute);letter-spacing:.14em;margin-bottom:6px}
+.netrank .nr-row{display:flex;gap:12px;padding:5px 0;font-size:14px;font-weight:700}
+.netrank .nr-row span:nth-child(2){flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.netrank .nr-row.me{color:#ffdf6e}
+
+/* ---- タイミング測定 ---- */
+#cal{position:fixed;inset:0;z-index:120;background:rgba(5,8,14,.9);
+  display:flex;align-items:center;justify-content:center;touch-action:none}
+.calbox{background:#141926;border:1px solid rgba(255,255,255,.12);border-radius:10px;
+  padding:26px 30px;max-width:420px;margin:16px;text-align:center}
+.calbox h3{margin:0 0 12px;letter-spacing:.1em}
+.calbox p{font-size:12.5px;line-height:1.9;color:var(--mute)}
+.calcount{font-size:30px;font-weight:800;color:#ffdf6e;min-height:1.3em;margin:14px 0}
+
 /* ---- ゲーム ---- */
 #cv{width:100%;display:block;border-radius:2px;background:#070a12;touch-action:none;
   box-shadow:0 10px 40px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;
@@ -433,6 +499,7 @@ body.touch.playing #cv{
   flex:0 0 auto;width:100%;max-width:940px;max-height:34vh;object-fit:contain;
   margin-left:auto;margin-right:auto;
 }
+body.touch.playing.net2 #cv{max-height:52vh}   /* 対戦は相手レーンぶん縦を広く */
 body.touch.playing #pads{
   flex:0 1 auto;width:100%;max-width:940px;
   height:clamp(170px,44vh,430px);min-height:120px;
@@ -477,6 +544,7 @@ body.touch.playing .padlabel{
   .railnav .arw{width:42px;height:42px}
   #pads button{padding:40px 0 38px}
   #cv{max-height:38vh;object-fit:contain}
+  body.net2 #cv{max-height:56vh}
   .diff{width:104px}
   .diff .dh{font-size:14px}
   .brand h1{font-size:16px;letter-spacing:.3em}
@@ -509,6 +577,7 @@ body.touch.playing .padlabel{
       <div class="libtools">
         <span id="lib-status">読み込み中…</span>
         <button class="mini" id="lib-reload">更新</button>
+        <button class="mini" id="net-open">オンライン対戦</button>
       </div>
     </div>
     <div class="stage">
@@ -560,6 +629,73 @@ body.touch.playing .padlabel{
     </details>
   </section>
 
+  <!-- オンライン対戦 -->
+  <section id="s-net" class="screen">
+    <div class="netwrap">
+      <div class="nethead">
+        <h2>オンライン対戦</h2>
+        <p>同じ曲をみんなで同時に演奏して、スコアで勝負！　1ルーム最大5人</p>
+      </div>
+
+      <!-- ロビー: ルームを作る / 参加する -->
+      <div id="net-lobby">
+        <div class="netstep">
+          <span class="stepnum">1</span>
+          <div class="stepbody">
+            <label for="net-name">対戦で表示される なまえ</label>
+            <input type="text" id="net-name" maxlength="12" placeholder="れい: たろう">
+          </div>
+        </div>
+        <div class="netstep">
+          <span class="stepnum">2</span>
+          <div class="stepbody">
+            <label>どちらかをえらぶ</label>
+            <div class="netchoice">
+              <div class="netcard">
+                <h3>ルームを作る</h3>
+                <p>あなたが<b>ホスト</b>になります。<br>できた4文字のコードを友だちに伝えてください。</p>
+                <button class="btn" id="net-create">ルームを作る</button>
+              </div>
+              <div class="netcard">
+                <h3>ルームに参加する</h3>
+                <p>ホストから聞いた<b>4文字のコード</b>を入れてください。</p>
+                <input type="text" id="net-code" maxlength="4" placeholder="ABCD"
+                       style="text-transform:uppercase" autocomplete="off">
+                <button class="btn" id="net-join">参加する</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note">通信はP2P（端末どうしの直接通信）で、コードを知っている人だけが入れます。<br>
+        タブやブラウザを閉じると、自動でルームから退出したことになります。</p>
+      </div>
+
+      <!-- ルーム画面 -->
+      <div id="net-room" style="display:none">
+        <div class="roomhero">
+          <span class="roomlabel">ルームコード</span>
+          <div class="netcode" id="net-code-show"></div>
+          <button class="mini" id="net-copy">コードをコピー</button>
+          <p class="roomtip">このコードを友だちに伝えると、同じルームに入れます</p>
+        </div>
+        <div class="roomstate" id="net-role"></div>
+        <div class="roomband">
+          <span class="roomlabel">メンバー <b id="net-count"></b></span>
+          <div class="slots" id="net-members"></div>
+        </div>
+        <div class="roombtns">
+          <button class="btn big" id="net-pick">▶ 曲をえらんで対戦をはじめる</button>
+          <button class="btn ghost" id="net-leave">ルームから退出する</button>
+        </div>
+      </div>
+
+      <span id="net-status"></span>
+      <div class="netrow" style="margin-top:16px;justify-content:center">
+        <button class="btn ghost" id="net-back">← ふつうの曲えらびにもどる</button>
+      </div>
+    </div>
+  </section>
+
   <!-- 選曲 -->
   <section id="s-select" class="screen">
     <div class="songhead"><h2 id="title">-</h2><p id="subtitle"></p></div>
@@ -568,7 +704,8 @@ body.touch.playing .padlabel{
     <div class="opts">
       <div class="opt"><label>譜面速度 <span class="val" id="v-speed">1.6</span></label>
         <input type="range" id="speed" min="0.6" max="4" step="0.1" value="1.6"></div>
-      <div class="opt"><label>判定オフセット <span class="val" id="v-off">0 ms</span></label>
+      <div class="opt"><label>判定オフセット <span class="val" id="v-off">0 ms</span>
+          <button class="mini" id="cal-open" style="margin-left:10px">タイミングを測定</button></label>
         <input type="range" id="off" min="-200" max="200" step="5" value="0"></div>
       <div class="opt"><label>音楽音量 <span class="val" id="v-bgm">70</span></label>
         <input type="range" id="bgm" min="0" max="100" value="70"></div>
@@ -589,6 +726,19 @@ body.touch.playing .padlabel{
       <button class="mini" id="reset-cfg">設定を初期値に戻す</button>
     </div>
   </section>
+
+  <!-- タイミング測定 -->
+  <div id="cal" style="display:none">
+    <div class="calbox">
+      <h3>タイミングの測定</h3>
+      <p id="cal-msg">クリック音に合わせて、面（ドン）を叩いてください。<br>
+        PCは <b>F / J / スペース</b>、スマホは画面のどこでもタップ。</p>
+      <div class="calcount" id="cal-count"></div>
+      <div class="netrow" style="justify-content:center">
+        <button class="btn ghost" id="cal-close">やめる</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ゲーム -->
   <section id="s-game" class="screen">
@@ -622,7 +772,9 @@ body.touch.playing .padlabel{
         <div><span>最大コンボ</span><span id="r-combo"></span></div>
         <div><span>連打</span><span id="r-roll"></span></div>
       </div>
+      <div class="netrank" id="r-net" style="display:none"></div>
       <div class="rbtns">
+        <button class="btn" id="r-room" style="display:none">ルームにもどる</button>
         <button class="btn" id="retry">もう一度</button>
         <button class="btn ghost" id="tosel">難易度をえらぶ</button>
         <button class="btn ghost" id="tolib">曲をえらぶ</button>
@@ -631,6 +783,7 @@ body.touch.playing .padlabel{
   </section>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <script>
 "use strict";
 /* =========================================================
@@ -1231,7 +1384,8 @@ function bindOpts(){
    4. ゲーム本体
 ========================================================= */
 const cv = $('#cv'), cx = cv.getContext('2d');
-const W = 1280, H = 300;
+const W = 1280;
+let H = 300;                       // 対戦時は相手レーンぶん縦に伸びる
 cx.scale(2, 2);
 
 /* 本家の判定幅（ミリ秒）。おに・むずかしい / ふつう・かんたん の2系統 */
@@ -1247,6 +1401,24 @@ let JUDGE = JUDGE_TABLE[3];
 
 const BAR_H = 58, LANE_Y = 58, LANE_H = 152, PANEL_W = 250;
 const JUDGE_X = 372, PX_BEAT = 190, CY = LANE_Y + LANE_H / 2;
+const FOOT_H = 90;
+
+/*
+ * 対戦時は本家の2人プレイと同じく、自分のレーンの下に
+ * 「相手のレーン」を同じ大きさで置く。相手の人数ぶん（最大4本）
+ * 縦に並び、全員のレーンが同時に見える。ソロは従来どおり1レーン。
+ */
+let LANE2 = false, OPP_N = 0, FOOT_Y = LANE_Y + LANE_H;
+const oppY  = k => LANE_Y + LANE_H * (k + 1);     // k番目(0始まり)の相手レーン上端
+const oppCY = k => oppY(k) + LANE_H / 2;
+function applyLayout(){
+  OPP_N = 0;
+  if(netOn() && NET.launching && NET.playing)
+    OPP_N = clamp(NET.playing.filter(id => id !== NET.myId).length, 0, NET_MAX - 1);
+  LANE2 = OPP_N > 0;
+  FOOT_Y = LANE_Y + LANE_H * (1 + OPP_N);
+  H = FOOT_Y + FOOT_H;
+}
 
 const G = {
   running:false, courseIdx:0, course:null, startAt:0, src:null,
@@ -1257,13 +1429,26 @@ const G = {
 
 function startGame(idx){
   if(AC.state === 'suspended') AC.resume();
+  /*
+   * オンライン対戦中の開始はここで横取りする。
+   * ホスト: 曲情報を全員へ配って準備完了を待ち、そろったら netGo → NET.launching
+   *         付きでもう一度ここへ来る。
+   * ゲスト: 自分からは開始できない（ホストの合図でのみ netGo が呼ばれる）。
+   */
+  if(netOn() && !NET.launching){
+    if(NET.mode === 'host') netHostLaunch(idx);
+    else netStatus('ホストが曲を選ぶのを待ってください');
+    return;
+  }
   /* 最終防衛線: 過去に保存された壊れた設定が残っていても判定を壊さない */
   if(!Number.isFinite(CFG.offset)) CFG.offset = 0;
   if(!(CFG.speed > 0)) CFG.speed = 1.6;
+  applyLayout();
+  document.body.classList.toggle('net2', LANE2);
   const c = song.courses[idx];
   G.courseIdx = idx;
   G.course = c;
-  c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
+  c.notes.forEach((n, i) => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; n.idx = i; });
   Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
     gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitColor:{}, liveFrom:0, drawTo:0, running:true});
   G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
@@ -1452,7 +1637,7 @@ function miss(n){
   G.gauge = clamp(G.gauge - G.gaugeUp * 1.6, 0, 100);
   flash('不可', n);
 }
-function flash(txt, n){ G.judgeTxt = {txt, t:performance.now()}; }
+function flash(txt, n){ G.judgeTxt = {txt, t:performance.now()}; netOnJudge(txt, n); }
 
 /* ---- 更新 ---- */
 /*
@@ -1516,7 +1701,8 @@ function fitCanvas(){
   if(!(r.width > 0)) return;
   const dpr = Math.min(devicePixelRatio || 1, lowfx ? 1.25 : 2);
   const s = clamp(r.width * dpr / W, .5, 2);
-  if(Math.abs(s - VS) < .02 && cv.width && cv.width !== 2560) return;
+  if(Math.abs(s - VS) < .02 && cv.width && cv.width !== 2560 &&
+     cv.height === Math.round(H * s)) return;
   VS = s;
   cv.width = Math.round(W * s); cv.height = Math.round(H * s);
   cx.setTransform(s, 0, 0, s, 0, 0);
@@ -1568,30 +1754,33 @@ function mkBase(gogo){
   }
   b.fillStyle = '#f4efe4'; b.fillRect(gx + gw * GA.norma - 1, gy - 7, 2, gh + 14);
 
-  // レーン
-  g = b.createLinearGradient(0, LANE_Y, 0, LANE_Y + LANE_H);
-  if(gogo){
-    g.addColorStop(0, '#6d160f'); g.addColorStop(.16, '#a82518');
-    g.addColorStop(.5, '#cf3a26'); g.addColorStop(.84, '#a82518'); g.addColorStop(1, '#5f120c');
-  }else{
-    g.addColorStop(0, '#151a26'); g.addColorStop(.16, '#232b3e');
-    g.addColorStop(.5, '#2c3548'); g.addColorStop(.84, '#232b3e'); g.addColorStop(1, '#12161f');
-  }
-  b.fillStyle = g; b.fillRect(0, LANE_Y, W, LANE_H);
-  b.fillStyle = 'rgba(0,0,0,.55)';
-  b.fillRect(0, LANE_Y, W, 2); b.fillRect(0, LANE_Y + LANE_H - 2, W, 2);
-  b.fillStyle = 'rgba(255,255,255,.07)';
-  b.fillRect(0, LANE_Y + 2, W, 1); b.fillRect(0, LANE_Y + LANE_H - 3, W, 1);
-
-  // 判定枠
-  b.fillStyle = 'rgba(0,0,0,.22)'; b.beginPath(); b.arc(JUDGE_X, CY, 38, 0, 7); b.fill();
-  b.strokeStyle = 'rgba(255,255,255,.35)'; b.lineWidth = 3;
-  b.beginPath(); b.arc(JUDGE_X, CY, 38, 0, 7); b.stroke();
-  b.strokeStyle = 'rgba(255,255,255,.14)'; b.lineWidth = 2;
-  b.beginPath(); b.arc(JUDGE_X, CY, 52, 0, 7); b.stroke();
+  // レーン（対戦時は相手ぶんも同じものを下に焼く）
+  const bakeLane = (ly, cyv, dim) => {
+    const lg = b.createLinearGradient(0, ly, 0, ly + LANE_H);
+    if(gogo){
+      lg.addColorStop(0, '#6d160f'); lg.addColorStop(.16, '#a82518');
+      lg.addColorStop(.5, '#cf3a26'); lg.addColorStop(.84, '#a82518'); lg.addColorStop(1, '#5f120c');
+    }else{
+      lg.addColorStop(0, '#151a26'); lg.addColorStop(.16, '#232b3e');
+      lg.addColorStop(.5, '#2c3548'); lg.addColorStop(.84, '#232b3e'); lg.addColorStop(1, '#12161f');
+    }
+    b.fillStyle = lg; b.fillRect(0, ly, W, LANE_H);
+    if(dim){ b.fillStyle = 'rgba(6,9,15,.22)'; b.fillRect(0, ly, W, LANE_H); }  // 相手側は少し落とす
+    b.fillStyle = 'rgba(0,0,0,.55)';
+    b.fillRect(0, ly, W, 2); b.fillRect(0, ly + LANE_H - 2, W, 2);
+    b.fillStyle = 'rgba(255,255,255,.07)';
+    b.fillRect(0, ly + 2, W, 1); b.fillRect(0, ly + LANE_H - 3, W, 1);
+    b.fillStyle = 'rgba(0,0,0,.22)'; b.beginPath(); b.arc(JUDGE_X, cyv, 38, 0, 7); b.fill();
+    b.strokeStyle = 'rgba(255,255,255,.35)'; b.lineWidth = 3;
+    b.beginPath(); b.arc(JUDGE_X, cyv, 38, 0, 7); b.stroke();
+    b.strokeStyle = 'rgba(255,255,255,.14)'; b.lineWidth = 2;
+    b.beginPath(); b.arc(JUDGE_X, cyv, 52, 0, 7); b.stroke();
+  };
+  bakeLane(LANE_Y, CY, false);
+  for(let k = 0; k < OPP_N; k++) bakeLane(oppY(k), oppCY(k), true);
 
   // 下帯と曲名
-  const y0 = LANE_Y + LANE_H;
+  const y0 = FOOT_Y;
   g = b.createLinearGradient(0, y0, 0, H);
   g.addColorStop(0, '#e9dcc0'); g.addColorStop(1, '#cdbb96');
   b.fillStyle = g; b.fillRect(0, y0, W, H - y0);
@@ -1608,16 +1797,16 @@ function mkBase(gogo){
 
 /* 左パネル（音符を隠す層。SCOREラベルまで含めて焼く） */
 function mkPanel(){
-  const ph = H - LANE_Y;
+  const ph = H - LANE_Y, lanes = 1 + OPP_N;
   const [c, b] = mkOff(PANEL_W, ph);
   b.fillStyle = '#141926'; b.fillRect(0, 0, PANEL_W, ph);
   const g = b.createLinearGradient(PANEL_W - 26, 0, PANEL_W, 0);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
-  b.fillStyle = g; b.fillRect(PANEL_W - 26, 0, 26, LANE_H);
-  b.fillStyle = 'rgba(232,185,60,.4)'; b.fillRect(PANEL_W - 1, 0, 1, LANE_H);
-  b.fillStyle = 'rgba(232,185,60,.3)'; b.fillRect(PANEL_W - 1, LANE_H, 1, ph - LANE_H);
+  b.fillStyle = g; b.fillRect(PANEL_W - 26, 0, 26, LANE_H * lanes);
+  b.fillStyle = 'rgba(232,185,60,.4)'; b.fillRect(PANEL_W - 1, 0, 1, LANE_H * lanes);
+  b.fillStyle = 'rgba(232,185,60,.3)'; b.fillRect(PANEL_W - 1, LANE_H * lanes, 1, ph - LANE_H * lanes);
   b.textAlign = 'right'; b.fillStyle = '#6f7d95'; b.font = '700 10px system-ui';
-  b.fillText('S C O R E', PANEL_W - 18, LANE_H + 24);
+  b.fillText('S C O R E', PANEL_W - 18, FOOT_Y - LANE_Y + 24);
   return c;
 }
 
@@ -1638,10 +1827,13 @@ function render(t){
   cx.drawImage(BK.base[gogo ? 1 : 0], 0, 0, W, H);
   drawGaugeDyn();
   drawLane(t, gogo);
+  if(LANE2) drawOppLane(t);
   cx.drawImage(BK.panel, 0, LANE_Y, PANEL_W, H - LANE_Y);
   drawDrum(122, CY);
+  if(LANE2) drawOppPlate();
   cx.textAlign = 'right'; cx.fillStyle = '#f4efe4'; cx.font = '800 33px system-ui';
-  cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, LANE_Y + LANE_H + 60);
+  cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, FOOT_Y + 60);
+  netScores();
   if(t < 0){
     cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,255,255,.7)';
     cx.font = '700 22px system-ui';
@@ -1919,7 +2111,692 @@ function showResult(){
   $('#r-combo').textContent = G.maxCombo;
   $('#r-roll').textContent = G.rollHits;
   show('s-result');
+  netOnResult();
 }
+
+
+
+/* =========================================================
+   5.5 タイミングの自動測定
+   一定間隔のクリック音を鳴らし、それに合わせたタップとの
+   ずれの中央値を判定オフセットへ反映する。音は実際の出力経路
+   （WebAudio→端末→耳）を通るので、iOSのように出力遅延を
+   報告しない端末でも、実測でまとめて補正できる。
+========================================================= */
+const CAL = {on:false, clicks:[], taps:[], nodes:[], t0:0, need:10, seen:0};
+const CAL_GAP = .6;
+
+function calOpen(){
+  if(AC.state === 'suspended') AC.resume();
+  CAL.on = true; CAL.clicks = []; CAL.taps = []; CAL.nodes = []; CAL.seen = 0;
+  $('#cal').style.display = 'flex';
+  $('#cal-count').textContent = '♪ よく聞いて…';
+  const start = AC.currentTime + 1.2;
+  for(let i = 0; i < CAL.need + 8; i++){            // 多めに鳴らしておく
+    const t = start + i * CAL_GAP;
+    CAL.clicks.push(t);
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'square';
+    o.frequency.value = i % 4 === 0 ? 1560 : 1040;  // 4拍子の頭だけ高い音
+    g.gain.setValueAtTime(.22, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + .05);
+    o.connect(g); g.connect(AC.destination);        // 音量設定に影響されない専用経路
+    o.start(t); o.stop(t + .07);
+    CAL.nodes.push(o);
+  }
+}
+
+function calClose(){
+  CAL.on = false;
+  for(const o of CAL.nodes){ try{ o.stop(); }catch(e){} }
+  CAL.nodes = [];
+  $('#cal').style.display = 'none';
+}
+
+function calTap(evTime){
+  if(!CAL.on) return;
+  const lag = evTime ? performance.now() - evTime : 0;
+  const at = AC.currentTime - (lag >= 0 && lag <= 400 ? lag / 1000 : 0);
+  // 最寄りのクリックとのずれ（±0.3秒以内だけ有効）
+  let best = null;
+  for(const c of CAL.clicks){
+    const d = at - c;
+    if(Math.abs(d) <= .3 && (best === null || Math.abs(d) < Math.abs(best))) best = d;
+  }
+  if(best === null) return;
+  CAL.seen++;
+  if(CAL.seen <= 2){                                 // 最初の2打は肩慣らしで捨てる
+    $('#cal-count').textContent = 'その調子！';
+    return;
+  }
+  CAL.taps.push(best);
+  const left = CAL.need - CAL.taps.length;
+  $('#cal-count').textContent = left > 0 ? `あと ${left} 回` : '計算中…';
+  if(left > 0) return;
+
+  // 中央値を採用（外れ値に強い）
+  const s = [...CAL.taps].sort((a, b) => a - b);
+  const med = s[(s.length / 2) | 0];
+  /*
+   * プレイヤーは「聞こえた音」に合わせて叩くので、ずれ med は
+   * 出力遅延ぶんだけ正（遅れ）に出る。判定側を同じだけ手前に
+   * 動かせば一致する → オフセットから med を引く。
+   */
+  const el = $('#off');
+  const cur = parseFloat(el.value) || 0;
+  const next = clamp(Math.round((cur - med * 1000) / 5) * 5, -200, 200);
+  el.value = next;
+  if(el.oninput) el.oninput();                       // 表示更新と保存まで通す
+  $('#cal-msg').innerHTML =
+    `ずれの中央値: <b>${med >= 0 ? '+' : ''}${Math.round(med * 1000)} ms</b><br>` +
+    `判定オフセットを <b>${next} ms</b> に設定しました。<br>音符の到達もこの値に合わせて動きます。`;
+  $('#cal-count').textContent = '設定しました ✓';
+  for(const o of CAL.nodes){ try{ o.stop(); }catch(e){} }
+  CAL.nodes = [];
+  setTimeout(() => { if(CAL.on) calClose(); }, 2600);
+}
+
+$('#cal-open').onclick = calOpen;
+$('#cal-close').onclick = calClose;
+
+/* 測定中の入力: どのキー/タップでも拾う（連続入力の重複だけ弾く） */
+let calLastIn = -1e9;
+function calInput(evTime){
+  const nowMs = performance.now();
+  if(nowMs - calLastIn < 120) return;                // 同じ打の二重配達よけ
+  calLastIn = nowMs;
+  calTap(evTime);
+}
+addEventListener('keydown', e => {
+  if(!CAL.on) return;
+  if(e.code === 'Escape'){ calClose(); return; }
+  if(e.repeat) return;
+  e.preventDefault();
+  calInput(e.timeStamp);
+});
+document.addEventListener('pointerdown', e => {
+  if(!CAL.on) return;
+  if(e.target && e.target.id === 'cal-close') return;
+  calInput(e.timeStamp);
+});
+document.addEventListener('touchstart', e => {
+  if(!CAL.on) return;
+  if(e.target && e.target.id === 'cal-close') return;
+  if(e.cancelable) e.preventDefault();
+  calInput(e.timeStamp);
+}, {passive:false});
+
+/* =========================================================
+   6. オンライン対戦（PeerJS / P2P・ホスト中継のスター型）
+   - ルーム = ホストの Peer ID（tjaroom-XXXX）。ゲストはホストにだけ接続する
+   - メッセージは小さな JSON だけなので、全通信をホスト経由で中継する
+   - 上限5人（ホスト込み）。満員なら接続直後に断って切る
+   - 切断検知: DataConnection の close/error ＋ 3秒間隔の心拍(12秒無応答で退出扱い)
+     タブを閉じたときは pagehide/beforeunload で peer.destroy して即時に伝える
+========================================================= */
+const NET = {
+  mode:null, peer:null, code:'', name:'', myId:'',
+  conns:new Map(),          // ホスト用: peerId -> {conn, name, last, ready}
+  host:null, hostLast:0,    // ゲスト用: ホストへの接続
+  members:[],               // 名簿（全員に配られる）
+  scores:new Map(),         // 演奏中スコア id -> {id,name,s,c,g}
+  fins:new Map(),           // 結果 id -> {name,s,good,ok,bad,mc}
+  rank:null, playing:null, pick:null, course:0,
+  pops:[], oppSt:new Map(), oppFrom:0,
+  laneIds:[], laneNames:[],  // 相手レーンの割当（対戦開始時に固定）
+  launching:false, dead:false,
+  hbT:0, tick:0, waitT:0, waitStart:0, prepT:0
+};
+const NET_MAX = 5;
+const netOn = () => NET.mode !== null;
+
+const netCode4 = () => {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for(let i = 0; i < 4; i++) s += c[Math.random() * c.length | 0];
+  return s;
+};
+function netStatus(msg){ const el = $('#net-status'); if(el) el.textContent = msg || ''; }
+function netName(){
+  return (($('#net-name').value || '').trim() || 'プレイヤー').slice(0, 12);
+}
+function netCast(m){
+  for(const r of NET.conns.values()){
+    try{ if(r.conn.open) r.conn.send(m); }catch(e){}
+  }
+}
+const rosterNow = () => [{id:NET.myId, name:NET.name, host:true},
+  ...[...NET.conns.entries()].map(([id, r]) => ({id, name:r.name}))];
+
+/* ---- ルーム作成（ホスト） ---- */
+function netCreate(){
+  if(typeof Peer === 'undefined'){ netStatus('通信ライブラリを読み込めませんでした。ネット接続を確認して再読み込みしてください。'); return; }
+  netLeave(true);
+  NET.name = netName();
+  const code = netCode4();
+  const peer = new Peer('tjaroom-' + code, {debug:0});
+  NET.peer = peer; NET.mode = 'host'; NET.code = code;
+  netStatus('ルームを作成しています…');
+  peer.on('open', id => {
+    NET.myId = id;
+    NET.members = rosterNow();
+    netStatus(''); netRoomUI();
+  });
+  peer.on('connection', conn => netHostAccept(conn));
+  peer.on('error', e => {
+    if(e.type === 'unavailable-id'){ netLeave(true); netCreate(); return; }  // コード衝突 → 引き直し
+    netStatus('通信エラー: ' + e.type);
+  });
+  peer.on('disconnected', () => { try{ peer.reconnect(); }catch(e){} });
+  netHeartbeat();
+}
+
+function netHostAccept(conn){
+  conn.on('open', () => {
+    if(NET.members.length >= NET_MAX){          // 満員: 断ってから切る
+      try{ conn.send({t:'full'}); }catch(e){}
+      setTimeout(() => { try{ conn.close(); }catch(e){} }, 300);
+    }
+  });
+  conn.on('data', m => netHostData(conn, m));
+  conn.on('close', () => netHostDrop(conn.peer));
+  conn.on('error', () => netHostDrop(conn.peer));
+}
+
+function netHostData(conn, m){
+  if(!m || typeof m !== 'object') return;
+  let rec = NET.conns.get(conn.peer);
+  if(m.t === 'hello' && !rec){
+    if(NET.members.length >= NET_MAX){
+      /* openイベント側の満員通知が取りこぼされても、ここで必ず断る */
+      try{ conn.send({t:'full'}); }catch(e){}
+      setTimeout(() => { try{ conn.close(); }catch(e){} }, 300);
+      return;
+    }
+    rec = {conn, name:String(m.name || 'ゲスト').slice(0, 12), last:performance.now(), ready:false};
+    NET.conns.set(conn.peer, rec);
+    NET.members = rosterNow();
+    netCast({t:'roster', members:NET.members, code:NET.code});
+    netRoomUI();
+    return;
+  }
+  if(!rec) return;
+  rec.last = performance.now();
+  if(m.t === 'hb') return;
+  if(m.t === 'ready')  rec.ready = true;
+  if(m.t === 'nready') rec.ready = 'skip';
+  if(m.t === 'sc') NET.scores.set(conn.peer,
+    {id:conn.peer, name:rec.name, s:m.s|0, c:m.c|0, g:+m.g || 0});
+  if(m.t === 'jd') netRelayJudge(conn.peer, m.k | 0, m.i == null ? -1 : m.i | 0);
+  if(m.t === 'fin'){
+    NET.fins.set(conn.peer, {name:rec.name, s:m.s|0, good:m.good|0, ok:m.ok|0, bad:m.bad|0, mc:m.mc|0});
+    netMaybeRank();
+  }
+}
+
+function netHostDrop(id){
+  if(!NET.conns.has(id)) return;
+  NET.conns.delete(id);
+  NET.scores.delete(id);
+  NET.members = rosterNow();
+  netCast({t:'roster', members:NET.members, code:NET.code});
+  netRoomUI();
+  netMaybeRank();          // 演奏中に落ちた人は残りのメンバーで結果を確定できる
+}
+
+/* ---- ルーム参加（ゲスト） ---- */
+function netJoin(){
+  if(typeof Peer === 'undefined'){ netStatus('通信ライブラリを読み込めませんでした。ネット接続を確認して再読み込みしてください。'); return; }
+  const code = ($('#net-code').value || '').trim().toUpperCase();
+  if(code.length !== 4){ netStatus('4文字のルームコードを入れてください'); return; }
+  netLeave(true);
+  NET.name = netName();
+  const peer = new Peer({debug:0});
+  NET.peer = peer; NET.mode = 'guest'; NET.code = code;
+  netStatus('接続しています…');
+  peer.on('open', id => {
+    NET.myId = id;
+    const conn = peer.connect('tjaroom-' + code, {reliable:true});
+    NET.host = conn; NET.hostLast = performance.now();
+    conn.on('open', () => { conn.send({t:'hello', name:NET.name}); netStatus(''); });
+    conn.on('data', m => netGuestData(m));
+    conn.on('close', () => netGuestLost());
+    conn.on('error', () => netGuestLost());
+    setTimeout(() => {
+      if(NET.mode === 'guest' && !NET.members.length){
+        netStatus('ルームに接続できませんでした。コードを確認してください。');
+        netLeave(true); netRoomUI();
+      }
+    }, 8000);
+  });
+  peer.on('error', e => {
+    if(e.type === 'peer-unavailable'){
+      netStatus('そのコードのルームが見つかりません');
+      netLeave(true); netRoomUI();
+    }else netStatus('通信エラー: ' + e.type);
+  });
+  netHeartbeat();
+}
+
+function netGuestData(m){
+  if(!m || typeof m !== 'object') return;
+  NET.hostLast = performance.now();
+  if(m.t === 'full'){ netStatus('ルームが満員です（5人まで）'); netLeave(true); netRoomUI(); }
+  else if(m.t === 'roster'){ NET.members = m.members || []; netRoomUI(); }
+  else if(m.t === 'hb'){ try{ if(NET.host && NET.host.open) NET.host.send({t:'hb'}); }catch(e){} }
+  else if(m.t === 'song') netGuestPrepare(m);
+  else if(m.t === 'go') netGo(m.course | 0);
+  else if(m.t === 'scs' && Array.isArray(m.list)) NET.scores = new Map(m.list.map(e => [e.id, e]));
+  else if(m.t === 'jdb') netPopJudge(m.id, m.k | 0, m.i == null ? -1 : m.i | 0);
+  else if(m.t === 'rank'){ NET.rank = m.list || []; netShowRank(); }
+}
+
+async function netGuestPrepare(m){
+  if(!m.lib) return;
+  NET.pick = m.lib; NET.course = m.course | 0;
+  const ok = await playFromLibrary(m.lib);
+  if(ok){
+    try{ NET.host.send({t:'ready'}); }catch(e){}
+    LOAD.show(m.lib.title || '', 'ほかのメンバーを待っています');
+    clearTimeout(NET.prepT);
+    NET.prepT = setTimeout(() => { LOAD.hide(); netStatus('開始の合図が届きませんでした'); }, 40000);
+  }else{
+    try{ NET.host.send({t:'nready'}); }catch(e){}
+    netStatus('曲を準備できませんでした。この回は見学になります。');
+  }
+}
+
+function netGuestLost(){
+  if(NET.mode !== 'guest') return;
+  if(G.running){ NET.dead = true; return; }    // 演奏はそのまま続行。結果は自分のみ
+  netLeave(true);
+  netStatus('ルームとの接続が切れました（解散または通信断）');
+  netRoomUI();
+}
+
+/* ---- 開始の同期 ---- */
+function netHostLaunch(idx){
+  if(!NET.pick){ alert('オンライン対戦は共有ライブラリの曲でのみ遊べます'); return; }
+  NET.course = idx;
+  NET.rank = null; NET.fins = new Map(); NET.scores = new Map();
+  for(const r of NET.conns.values()) r.ready = false;
+  netCast({t:'song', lib:NET.pick, course:idx});
+  LOAD.show(NET.pick.title || '', 'メンバーの準備を待っています');
+  NET.waitStart = performance.now();
+  clearInterval(NET.waitT);
+  NET.waitT = setInterval(() => {
+    const all = [...NET.conns.values()].every(r => r.ready);
+    if(all || performance.now() - NET.waitStart > 30000){
+      clearInterval(NET.waitT); NET.waitT = 0;
+      netCast({t:'go', course:idx});
+      netGo(idx);
+    }
+  }, 300);
+}
+
+function netGo(course){
+  clearInterval(NET.waitT); NET.waitT = 0;
+  clearTimeout(NET.prepT);
+  LOAD.hide();
+  NET.rank = null; NET.fins = new Map(); NET.scores = new Map();
+  NET.playing = NET.members.map(mm => mm.id);
+  NET.pops = []; NET.oppSt = new Map(); NET.oppFrom = 0;
+  NET.laneIds = NET.members.filter(mm => mm.id !== NET.myId).map(mm => mm.id).slice(0, NET_MAX - 1);
+  NET.laneNames = NET.laneIds.map(id => {
+    const mm = NET.members.find(x => x.id === id); return mm ? mm.name : '？';
+  });
+  NET.dead = false;
+  NET.launching = true;
+  clearInterval(NET.tick);
+  NET.tick = setInterval(netTickFn, 400);
+  startGame(course);
+}
+
+/* ---- 演奏中のスコア共有（400ms間隔・ホストがまとめて配る） ---- */
+function netTickFn(){
+  if(!netOn() || !G.running) return;
+  if(NET.mode === 'guest'){
+    try{ if(NET.host && NET.host.open) NET.host.send({t:'sc', s:G.score, c:G.combo, g:G.gauge}); }catch(e){}
+  }else{
+    NET.scores.set(NET.myId, {id:NET.myId, name:NET.name, s:G.score, c:G.combo, g:G.gauge});
+    const list = [...NET.scores.values()];
+    netCast({t:'scs', list});
+  }
+}
+
+/* ---- 判定（良・可・不可）のリアルタイム配信 ---- */
+const JD_TXT = ['良', '可', '不可'];
+const JD_COL = ['#ffdf6e', '#ffffff', '#7ea7d8'];
+
+function netOnJudge(txt, n){
+  if(!netOn() || !NET.launching) return;
+  const k = txt === '良' ? 0 : txt === '可' ? 1 : 2;
+  const i = n && n.idx != null ? n.idx : -1;
+  if(NET.mode === 'guest'){
+    try{ if(NET.host && NET.host.open) NET.host.send({t:'jd', k, i}); }catch(e){}
+  }else{
+    netRelayJudge(NET.myId, k, i);
+  }
+}
+function netRelayJudge(id, k, i){
+  netCast({t:'jdb', id, k, i});
+  netPopJudge(id, k, i);
+}
+/*
+ * 相手の判定を受けて、相手レーン用の「影の消費状態」を進める。
+ * 音符番号が付いてくるので、相手の画面と同じ音符がこちらでも消える。
+ */
+function netPopJudge(id, k, i){
+  if(id === NET.myId) return;                       // 自分の判定はメイン画面で見えている
+  const mm = NET.members.find(x => x.id === id);
+  NET.pops.push({id, name:mm ? mm.name : '?', k:clamp(k, 0, 2), at:performance.now()});
+  if(NET.pops.length > 40) NET.pops.splice(0, NET.pops.length - 40);
+  if(!G.course) return;
+  let st = NET.oppSt.get(id);
+  if(!st){
+    st = {done:new Uint8Array(G.course.notes.length), jt:0, jk:0, lt:0};
+    NET.oppSt.set(id, st);
+  }
+  if(i >= 0 && i < st.done.length) st.done[i] = 1;
+  st.jt = performance.now(); st.jk = clamp(k, 0, 2);
+  if(k < 2) st.lt = performance.now();              // 良・可なら命中の光
+}
+
+/* ---- 相手レーン（本家と同じ見た目で、相手の人数ぶん縦に並べる） ---- */
+
+function drawOppLane(t){
+  const ns = G.course.notes;
+  const nowMs = performance.now();
+
+  /*
+   * 走査の左端（表示から流れ出た時刻）は全レーン共通なので一度だけ進める。
+   * 自分の消費(liveFrom)は使わない: 相手はまだ叩いていないかもしれないから。
+   */
+  if(G.laBase < 1e9){
+    const minVel = 1300 / G.laBase;
+    const past = (JUDGE_X - PANEL_W + 90) / (minVel * CFG.speed);
+    while(NET.oppFrom < ns.length && ns[NET.oppFrom].time < t - past) NET.oppFrom++;
+  }else NET.oppFrom = 0;
+
+  for(let k = 0; k < OPP_N; k++){
+    const id = NET.laneIds[k];
+    const st = id ? NET.oppSt.get(id) : null;
+    const cy = oppCY(k), ly = oppY(k);
+
+    // 小節線
+    cx.strokeStyle = 'rgba(255,255,255,.22)'; cx.lineWidth = 2;
+    for(const bl of G.course.bars){
+      const x = xOf(bl, t);
+      if(x < PANEL_W - 20 || x > W + 20) continue;
+      cx.beginPath(); cx.moveTo(x, ly + 8); cx.lineTo(x, ly + LANE_H - 8); cx.stroke();
+    }
+
+    // 命中の光（その人の良・可）
+    if(st && nowMs - st.lt < 260){
+      const a = (nowMs - st.lt) / 260;
+      cx.globalAlpha = (1 - a) * .85;
+      cx.fillStyle = '#fff6dc';
+      cx.beginPath(); cx.arc(JUDGE_X, cy, 36 * (1 + a * .85), 0, 7); cx.fill();
+      cx.globalAlpha = 1;
+    }
+
+    // 連打帯
+    for(let i = NET.oppFrom; i < G.drawTo; i++){
+      const n = ns[i];
+      if(n.type < 5) continue;
+      const x1 = xOf(n, t), x2 = xOf({time:n.end, bpm:n.bpm, scroll:n.scroll}, t);
+      if(x2 < PANEL_W - 80 || x1 > W + 80) continue;
+      const r = n.type === T.ROLLB ? 44 : 30;
+      cx.fillStyle = '#fdfdfd';
+      cx.beginPath();
+      cx.moveTo(x1, cy - r); cx.lineTo(x2, cy - r);
+      cx.arc(x2, cy, r, -Math.PI / 2, Math.PI / 2);
+      cx.lineTo(x1, cy + r); cx.arc(x1, cy, r, Math.PI / 2, -Math.PI / 2);
+      cx.fill();
+      cx.fillStyle = '#f5a623';
+      cx.beginPath();
+      cx.moveTo(x1, cy - r + 4); cx.lineTo(x2, cy - r + 4);
+      cx.arc(x2, cy, r - 4, -Math.PI / 2, Math.PI / 2);
+      cx.lineTo(x1, cy + r - 4); cx.arc(x1, cy, r - 4, Math.PI / 2, -Math.PI / 2);
+      cx.fill();
+    }
+
+    // 音符（その人の影状態で消える。描き方は自分のレーンと同一）
+    for(let i = G.drawTo - 1; i >= NET.oppFrom; i--){
+      const n = ns[i];
+      if(n.type >= 5) continue;
+      if(st && st.done[i]) continue;
+      const x = xOf(n, t);
+      if(x < PANEL_W - 60 || x > W + 60) continue;
+      const big = n.type === T.DONB || n.type === T.KAB, r = big ? 44 : 30;
+      const don = n.type === T.DON || n.type === T.DONB;
+      if(!lowfx){
+        cx.fillStyle = 'rgba(0,0,0,.3)'; cx.beginPath(); cx.arc(x + 2, cy + 3, r, 0, 7); cx.fill();
+      }
+      cx.fillStyle = '#fdfdfd';        cx.beginPath(); cx.arc(x, cy, r, 0, 7); cx.fill();
+      cx.fillStyle = don ? '#c8352a' : '#2a7fc0';
+      cx.beginPath(); cx.arc(x, cy, r - 5, 0, 7); cx.fill();
+      if(!lowfx){
+        cx.fillStyle = grad('note' + (don ? 'd' : 'k') + r + 'o' + k, () => {
+          const g = cx.createLinearGradient(0, cy - r, 0, cy + r);
+          g.addColorStop(0, don ? '#f26a55' : '#5cb2ea'); g.addColorStop(.55, 'rgba(255,255,255,0)');
+          return g;
+        });
+        cx.beginPath(); cx.arc(x, cy, r - 5, 0, 7); cx.fill();
+      }
+    }
+
+    // 判定文字（自分と同じ位置・同じ見た目）
+    if(st && nowMs - st.jt < 420){
+      const a = (nowMs - st.jt) / 420;
+      const s = JD_TXT[st.jk];
+      cx.globalAlpha = 1 - a * a;
+      cx.textAlign = 'center'; cx.font = '800 36px system-ui';
+      cx.lineWidth = 6; cx.strokeStyle = '#1a1206';
+      cx.fillStyle = JD_COL[st.jk];
+      cx.strokeText(s, JUDGE_X, cy - 54 - a * 16);
+      cx.fillText(s, JUDGE_X, cy - 54 - a * 16);
+      cx.globalAlpha = 1;
+    }
+  }
+}
+
+/* 各相手レーンの左パネル: 名前とスコア。切断した人は明示する */
+function drawOppPlate(){
+  cx.textAlign = 'center';
+  for(let k = 0; k < OPP_N; k++){
+    const id = NET.laneIds[k];
+    const mm = NET.members.find(x => x.id === id);
+    const sc = id ? NET.scores.get(id) : null;
+    const cy = oppCY(k);
+    const gone = !mm;                              // 名簿から消えた = 切断
+    cx.fillStyle = '#8fa0c4'; cx.font = '700 11px system-ui';
+    cx.fillText('あいて', 122, cy - 34);
+    cx.fillStyle = gone ? '#8a93a8' : '#f4efe4'; cx.font = '800 20px system-ui';
+    cx.fillText(gone ? (NET.laneNames[k] || '？') : String(mm.name).slice(0, 8), 122, cy - 8);
+    if(gone){
+      cx.fillStyle = '#d97b6e'; cx.font = '700 12px system-ui';
+      cx.fillText('切断されました', 122, cy + 22);
+    }else{
+      cx.fillStyle = '#ffdf6e'; cx.font = '800 22px system-ui';
+      cx.fillText(sc ? (sc.s | 0).toLocaleString() : '0', 122, cy + 24);
+    }
+  }
+}
+
+/* 下帯の右側: 全員のスコアと直近判定（3人以上のとき用の一覧） */
+function netScores(){
+  if(!netOn() || !NET.launching) return;
+  const rows = [...NET.scores.values()].sort((a, b) => (b.s|0) - (a.s|0)).slice(0, NET_MAX);
+  if(!rows.length) return;
+  const nowMs = performance.now();
+  const listW = 210;
+  cx.fillStyle = 'rgba(16,20,31,.92)';
+  cx.fillRect(W - listW - 6, FOOT_Y + 6, listW, FOOT_H - 14);
+  const rh = Math.min(19, (FOOT_H - 22) / rows.length);
+  let ry = FOOT_Y + 22;
+  cx.font = '700 12px system-ui';
+  for(const r of rows){
+    const me = r.id === NET.myId;
+    cx.fillStyle = me ? '#ffdf6e' : '#e8ecf6';
+    cx.textAlign = 'left';
+    cx.fillText(String(r.name || '').slice(0, 6), W - listW + 4, ry);
+    cx.textAlign = 'right';
+    cx.fillText((r.s | 0).toLocaleString(), W - 44, ry);
+    if(!me){
+      for(let i = NET.pops.length - 1; i >= 0; i--){
+        const p = NET.pops[i];
+        if(p.id !== r.id) continue;
+        if(nowMs - p.at > 700) break;
+        cx.globalAlpha = 1 - (nowMs - p.at) / 700;
+        cx.fillStyle = JD_COL[p.k];
+        cx.fillText(JD_TXT[p.k], W - 12, ry);
+        cx.globalAlpha = 1;
+        break;
+      }
+    }
+    ry += rh;
+  }
+  while(NET.pops.length && nowMs - NET.pops[0].at > 900) NET.pops.shift();
+  cx.textAlign = 'left';
+}
+
+/* ---- 結果とランキング ---- */
+function netMaybeRank(force){
+  if(NET.mode !== 'host' || NET.rank || !NET.playing) return;
+  const alive = NET.playing.filter(id => id === NET.myId || NET.conns.has(id));
+  const have  = alive.filter(id => NET.fins.has(id));
+  if(!force && have.length < alive.length) return;
+  if(!have.length) return;
+  NET.rank = have.map(id => Object.assign({id}, NET.fins.get(id)))
+                 .sort((a, b) => b.s - a.s);
+  netCast({t:'rank', list:NET.rank});
+  netShowRank();
+}
+
+function netShowRank(){
+  if(!NET.rank || !NET.rank.length) return;
+  const box = $('#r-net');
+  box.innerHTML = '<div class="nr-h">みんなの結果</div>' + NET.rank.map((r, i) =>
+    `<div class="nr-row${r.id === NET.myId ? ' me' : ''}"><span>${i + 1}位</span>` +
+    `<span>${esc(r.name)}</span><span>${(r.s | 0).toLocaleString()}</span></div>`).join('');
+  box.style.display = 'block';
+}
+
+/* showResult の最後から呼ばれる */
+function netOnResult(){
+  const inNet = netOn();
+  $('#r-room').style.display = inNet ? '' : 'none';
+  $('#retry').style.display  = inNet ? 'none' : '';   // 個別リトライは同期が崩れるので封印
+  $('#tosel').style.display  = inNet ? 'none' : '';
+  $('#tolib').style.display  = inNet ? 'none' : '';
+  if(!inNet){ $('#r-net').style.display = 'none'; return; }
+  if(!NET.launching){ netShowRank(); return; }        // 対戦回でなければ表示だけ
+  NET.launching = false;
+  clearInterval(NET.tick); NET.tick = 0;
+  const box = $('#r-net');
+  box.innerHTML = '<div class="nr-h">みんなの結果を待っています…</div>';
+  box.style.display = 'block';
+  if(NET.mode === 'guest'){
+    if(NET.dead || !NET.host || !NET.host.open){
+      box.innerHTML = '<div class="nr-h">接続が切れたため、みんなの結果は出せませんでした</div>';
+      netGuestLost();
+    }else{
+      try{ NET.host.send({t:'fin', s:G.score, good:G.good, ok:G.ok, bad:G.bad, mc:G.maxCombo}); }catch(e){}
+    }
+  }else{
+    NET.fins.set(NET.myId, {name:NET.name, s:G.score, good:G.good, ok:G.ok, bad:G.bad, mc:G.maxCombo});
+    netMaybeRank();
+    setTimeout(() => netMaybeRank(true), 15000);      // 遅い人は15秒で締め切り
+  }
+  netShowRank();
+}
+
+/* ---- 心拍と退出 ---- */
+function netHeartbeat(){
+  clearInterval(NET.hbT);
+  NET.hbT = setInterval(() => {
+    const nowMs = performance.now();
+    if(NET.mode === 'host'){
+      for(const [id, r] of [...NET.conns]){
+        try{ if(r.conn.open) r.conn.send({t:'hb'}); }catch(e){}
+        if(nowMs - r.last > 12000){ try{ r.conn.close(); }catch(e){} netHostDrop(id); }
+      }
+    }else if(NET.mode === 'guest'){
+      if(nowMs - NET.hostLast > 12000) netGuestLost();
+    }
+  }, 3000);
+}
+
+function netLeave(silent){
+  clearInterval(NET.hbT);  NET.hbT = 0;
+  clearInterval(NET.tick); NET.tick = 0;
+  clearInterval(NET.waitT); NET.waitT = 0;
+  clearTimeout(NET.prepT);
+  try{ NET.peer && NET.peer.destroy(); }catch(e){}
+  NET.mode = null; NET.peer = null; NET.host = null; NET.myId = '';
+  NET.conns = new Map(); NET.members = [];
+  NET.scores = new Map(); NET.fins = new Map();
+  NET.pops = []; NET.oppSt = new Map(); NET.oppFrom = 0;
+  NET.laneIds = []; NET.laneNames = [];
+  NET.rank = null; NET.playing = null; NET.launching = false; NET.dead = false;
+  netRoomUI();
+  if(!silent) netStatus('ルームから退出しました');
+}
+
+/* タブを閉じる・別ページへ移動 → peerを破棄して相手側に即 close を届かせる */
+addEventListener('pagehide',     () => { try{ NET.peer && NET.peer.destroy(); }catch(e){} });
+addEventListener('beforeunload', () => { try{ NET.peer && NET.peer.destroy(); }catch(e){} });
+
+/* ---- ルーム画面のUI ---- */
+function netRoomUI(){
+  const inRoom = netOn();
+  const lobby = $('#net-lobby'), room = $('#net-room');
+  if(!lobby) return;
+  lobby.style.display = inRoom ? 'none' : '';
+  room.style.display  = inRoom ? '' : 'none';
+  if(!inRoom) return;
+  $('#net-code-show').textContent = NET.code;
+  const alone = NET.members.length <= 1;
+  $('#net-role').textContent = NET.mode === 'host'
+    ? (alone
+        ? '上のコードを友だちに伝えて、参加を待ちましょう。そろわなくても1人で始められます。'
+        : 'メンバーがそろったら「曲をえらんで対戦をはじめる」を押してください。全員でいっせいに始まります。')
+    : 'ホストが曲をえらぶと、自動でダウンロードされて対戦がはじまります。このまま待っていてください。';
+  $('#net-pick').style.display = NET.mode === 'host' ? '' : 'none';
+  $('#net-count').textContent = NET.members.length + '人 / ' + NET_MAX + '人';
+  const slots = [];
+  for(let i = 0; i < NET_MAX; i++){
+    const mm = NET.members[i];
+    if(mm){
+      const cls = 'slot' + (mm.host ? ' hostslot' : '') + (mm.id === NET.myId ? ' meslot' : '');
+      slots.push(`<div class="${cls}"><span class="sname">${esc(mm.name)}</span>` +
+        `<span class="srole">${mm.host ? '👑 ホスト' : 'メンバー'}${mm.id === NET.myId ? '（あなた）' : ''}</span></div>`);
+    }else{
+      slots.push('<div class="slot empty"><span class="sname">参加待ち…</span></div>');
+    }
+  }
+  $('#net-members').innerHTML = slots.join('');
+}
+
+$('#net-open').onclick = () => {
+  if(!$('#net-name').value) $('#net-name').value = ($('#up-who').value || '').slice(0, 12);
+  netRoomUI(); netStatus(''); show('s-net');
+};
+$('#net-create').onclick = netCreate;
+$('#net-join').onclick   = netJoin;
+$('#net-leave').onclick  = () => netLeave();
+$('#net-copy').onclick   = async () => {
+  try{
+    await navigator.clipboard.writeText(NET.code);
+    $('#net-copy').textContent = 'コピーしました ✓';
+  }catch(e){
+    $('#net-copy').textContent = '長押しでコピーしてください';
+  }
+  setTimeout(() => { $('#net-copy').textContent = 'コードをコピー'; }, 2000);
+};
+$('#net-back').onclick   = () => show('s-load');
+$('#net-pick').onclick   = () => show('s-load');
+$('#r-room').onclick     = () => { netRoomUI(); show('s-net'); };
 
 /* =========================================================
    5. 入力
@@ -2453,6 +3330,7 @@ const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;
 
 async function playFromLibrary(s, el){
   if(el) el.classList.add('busy');
+  NET.pick = s;                    // 対戦用: 最後に選んだライブラリ曲を覚えておく
   LOAD.show(s.title, '譜面をダウンロードしています');
   try{
     const tjaBuf = await driveGet(s.tjaId, '譜面をダウンロードしています');
@@ -2462,8 +3340,10 @@ async function playFromLibrary(s, el){
     LOAD.sub('音源を準備しています'); LOAD.bar('wait');
     await new Promise(r => setTimeout(r, 30));       // 画面を更新させてから復号に入る
     await useSong(decodeText(tjaBuf), audBuf, s.audioName);
+    return true;
   }catch(err){
     alert('ダウンロードに失敗しました: ' + err.message);
+    return false;
   }finally{
     LOAD.hide();
     if(el) el.classList.remove('busy');
