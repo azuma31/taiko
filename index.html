@@ -102,9 +102,15 @@ body{
 
 .rail{
   display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
-  padding:16px 50% 20px;scrollbar-width:none;-ms-overflow-style:none;align-items:center;
+  padding:16px 0 20px;scrollbar-width:none;-ms-overflow-style:none;align-items:center;
 }
 .rail::-webkit-scrollbar{display:none}
+/*
+ * 中央寄せの余白は padding:50% ではなくこの要素で作る。
+ * WebKit はスクロール領域の右パディングを無視するため、
+ * padding だと最後まで送れず選択中の曲が右にずれてしまう。
+ */
+.rail .spacer{flex:none;width:0;height:1px;pointer-events:none}
 
 /* 一枚の曲かんばん */
 .plate{
@@ -422,7 +428,7 @@ body.playing{overflow:hidden;overscroll-behavior:none}
   .stage{margin:0 -12px 0;padding:0 0 20px}
   .maku{height:20px}
   .stagein{padding-top:22px}
-  .rail{padding:12px 50% 16px}
+  .rail{padding:12px 0 16px}
   .plate{width:86px;height:184px}
   .plate .pt{height:134px;margin-top:20px}
   .nowplate{margin:-8px 4px 0;padding:15px 16px 17px}
@@ -748,18 +754,28 @@ const bgmGain = AC.createGain(), seGain = AC.createGain();
 bgmGain.connect(AC.destination); seGain.connect(AC.destination);
 bgmGain.gain.value = .7; seGain.gain.value = .6;
 
-/* --- ノイズ源。長さの違う2種を用意して打点ごとに位置をずらす --- */
-function mkNoise(sec){
-  const b = AC.createBuffer(1, Math.floor(AC.sampleRate * sec), AC.sampleRate), d = b.getChannelData(0);
+/* 全体を少し締める */
+const seComp = AC.createDynamicsCompressor();
+seComp.threshold.value = -14; seComp.knee.value = 22;
+seComp.ratio.value = 4; seComp.attack.value = .002; seComp.release.value = .16;
+seComp.connect(seGain);
+
+/* ---------------------------------------------------------
+ * 太鼓の音は「起動時に一度だけ合成して録っておく」方式。
+ * 1打ごとに十数個の音声ノードを組み立てると、連打で端末が詰まり
+ * 音も入力も止まってしまうため、再生時は音声ノード2個で済ませる。
+ * ------------------------------------------------------- */
+
+function mkNoise(ctx, sec){
+  const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * sec), ctx.sampleRate);
+  const d = b.getChannelData(0);
   for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return b;
 }
-const noiseBuf = mkNoise(1.2);
 
-/* --- 部屋鳴り。太鼓は必ず空間の中で鳴るので短い残響を足す --- */
-const revIR = (() => {
-  const len = Math.floor(AC.sampleRate * .9);
-  const b = AC.createBuffer(2, len, AC.sampleRate);
+function mkIR(ctx){
+  const len = Math.floor(ctx.sampleRate * .8);
+  const b = ctx.createBuffer(2, len, ctx.sampleRate);
   for(let ch = 0; ch < 2; ch++){
     const d = b.getChannelData(ch);
     for(let i = 0; i < len; i++){
@@ -768,37 +784,28 @@ const revIR = (() => {
     }
   }
   return b;
-})();
-const revGain = AC.createGain(); revGain.gain.value = .16;
-const conv = AC.createConvolver(); conv.buffer = revIR;
-revGain.connect(conv); conv.connect(seGain);
-
-/* --- 全体を少し締める --- */
-const seComp = AC.createDynamicsCompressor();
-seComp.threshold.value = -14; seComp.knee.value = 22;
-seComp.ratio.value = 4; seComp.attack.value = .002; seComp.release.value = .16;
-seComp.connect(seGain);
+}
 
 /* 部品：フィルタを通したノイズの一撃 */
-function noiseHit(out, t, {type, f0, f1, q, gain, dur}){
-  const s = AC.createBufferSource();
-  s.buffer = noiseBuf;
+function noiseHit(ctx, out, t, nz, {type, f0, f1, q, gain, dur}){
+  const s = ctx.createBufferSource();
+  s.buffer = nz;
   s.playbackRate.value = .9 + Math.random() * .2;
-  const bq = AC.createBiquadFilter();
+  const bq = ctx.createBiquadFilter();
   bq.type = type; bq.Q.value = q;
   bq.frequency.setValueAtTime(f0, t);
   bq.frequency.exponentialRampToValueAtTime(Math.max(f1, 40), t + dur);
-  const g = AC.createGain();
+  const g = ctx.createGain();
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(gain, t + .0012);
   g.gain.exponentialRampToValueAtTime(.0001, t + dur);
   s.connect(bq); bq.connect(g); g.connect(out);
-  s.start(t, Math.random() * .8); s.stop(t + dur + .02);
+  s.start(t, Math.random() * .3); s.stop(t + dur + .02);
 }
 
 /* 部品：膜の振動モード。ピッチが少し下がりながら減衰する */
-function mode(out, t, f, bend, amp, dur, type){
-  const o = AC.createOscillator(), g = AC.createGain();
+function mode(ctx, out, t, f, bend, amp, dur, type){
+  const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type || 'sine';
   o.frequency.setValueAtTime(f, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(f * bend, 20), t + dur * .55);
@@ -808,9 +815,9 @@ function mode(out, t, f, bend, amp, dur, type){
   o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .02);
 }
 
-/* 部品：バチが皮を叩く瞬間のクリック。実音の「立ち」はここで決まる */
-function click(out, t, freq, amp, dur){
-  const o = AC.createOscillator(), g = AC.createGain();
+/* 部品：バチが皮を叩く瞬間のクリック */
+function click(ctx, out, t, freq, amp, dur){
+  const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = 'triangle';
   o.frequency.setValueAtTime(freq, t);
   o.frequency.exponentialRampToValueAtTime(freq * .35, t + dur);
@@ -819,78 +826,153 @@ function click(out, t, freq, amp, dur){
   o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .01);
 }
 
-let lastHitTime = 0, voices = 0, LITE = false;
+/* ドン＝面。バチの打撃 → 皮の主モード → 胴の空気の共鳴 */
+function buildDon(ctx, out, t, nz, v){
+  click(ctx, out, t, 1500 * v, .34, .012);
+  noiseHit(ctx, out, t, nz, {type:'lowpass',  f0:2600 * v, f1:190, q:.7,  gain:.42, dur:.055});
+  noiseHit(ctx, out, t, nz, {type:'bandpass', f0:520 * v,  f1:150, q:1.1, gain:.30, dur:.10});
+  mode(ctx, out, t,  92 * v, .72, .62, .46);   // 胴の空気
+  mode(ctx, out, t, 176 * v, .70, .78, .34);   // 皮の基音
+  mode(ctx, out, t, 262 * v, .68, .34, .21);   // 第2モード
+  mode(ctx, out, t, 372 * v, .66, .17, .13);
+  mode(ctx, out, t, 498 * v, .64, .08, .085);
+}
 
-/* 連打中は音の作りを軽くする。端末が詰まると入力が落ちるため */
-function hitBus(level){
+/* カッ＝縁。木と木がぶつかる硬い音 */
+function buildKa(ctx, out, t, nz, v){
+  click(ctx, out, t, 3400 * v, .40, .008);
+  noiseHit(ctx, out, t, nz, {type:'bandpass', f0:2900 * v, f1:1150, q:.8, gain:.75, dur:.048});
+  noiseHit(ctx, out, t, nz, {type:'highpass', f0:7200,     f1:5200, q:.7, gain:.30, dur:.016});
+  mode(ctx, out, t,  880 * v, .90, .20, .042, 'triangle');
+  mode(ctx, out, t, 1460 * v, .90, .26, .036, 'triangle');
+  mode(ctx, out, t, 2240 * v, .90, .17, .026, 'triangle');
+  mode(ctx, out, t, 3260 * v, .90, .09, .018, 'triangle');
+  mode(ctx, out, t,  300 * v, .78, .10, .055);
+}
+
+/* 風船が割れる音 */
+function buildPop(ctx, out, t, nz, v){
+  noiseHit(ctx, out, t, nz, {type:'bandpass', f0:1800, f1:6000, q:.6, gain:.55, dur:.16});
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(480 * v, t);
+  o.frequency.exponentialRampToValueAtTime(1900 * v, t + .14);
+  g.gain.setValueAtTime(.26, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + .24);
+}
+
+/* 一発分を書き出す（残響もここで焼き込む） */
+function renderOne(build, sec, v){
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const sr = AC.sampleRate;
+  const oc = new OC(2, Math.ceil(sr * sec), sr);
+
+  const wet = oc.createGain(); wet.gain.value = .16;
+  const cv = oc.createConvolver(); cv.buffer = mkIR(oc);
+  wet.connect(cv); cv.connect(oc.destination);
+  const bus = oc.createGain();
+  bus.connect(oc.destination); bus.connect(wet);
+
+  build(oc, bus, 0, mkNoise(oc, .5), v);
+
+  return new Promise((res, rej) => {
+    let done = false;
+    const ok = b => { if(!done){ done = true; res(b); } };
+    oc.oncomplete = e => ok(e.renderedBuffer);
+    let p;
+    try{ p = oc.startRendering(); }catch(e){ rej(e); return; }
+    if(p && typeof p.then === 'function') p.then(ok, rej);
+    setTimeout(() => { if(!done) rej(new Error('render timeout')); }, 6000);
+  });
+}
+
+/* 同じ音の繰り返しにならないよう、少しずつ違う版を用意しておく */
+const KIT = {don:[], ka:[], pop:[]};
+let kitReady = false;
+
+async function buildKit(){
+  try{
+    for(let i = 0; i < 4; i++){
+      const v = .955 + i * .03;
+      KIT.don.push(await renderOne(buildDon, .95, v));
+      KIT.ka.push(await renderOne(buildKa, .40, v));
+    }
+    KIT.pop.push(await renderOne(buildPop, .50, 1));
+    kitReady = true;
+  }catch(err){
+    kitReady = false;      // 書き出せない端末では下の直接合成に切り替わる
+  }
+}
+buildKit();
+
+/* ---- 再生。音声ノードは1打あたり2個だけ ---- */
+let lastHitTime = 0, voices = 0;
+
+function playSample(list, level){
+  const b = list[(Math.random() * list.length) | 0];
+  const s = AC.createBufferSource();
+  s.buffer = b;
+  s.playbackRate.value = .985 + Math.random() * .03;
+  const g = AC.createGain();
+  g.gain.value = level;
+  s.connect(g); g.connect(seComp);
+  voices++;
+  s.onended = () => { s.disconnect(); g.disconnect(); if(voices > 0) voices--; };
+  s.start();
+}
+
+/* 書き出しに失敗した端末向けの直接合成（軽量版） */
+function playLive(isDon, level){
+  const t = AC.currentTime + .001;
+  const out = AC.createGain(); out.gain.value = level; out.connect(seComp);
+  const nz = liveNoise || (liveNoise = mkNoise(AC, .5));
+  if(isDon){
+    click(AC, out, t, 1500, .34, .012);
+    mode(AC, out, t, 176, .70, .80, .18);
+    mode(AC, out, t,  92, .72, .55, .22);
+  }else{
+    click(AC, out, t, 3400, .40, .008);
+    noiseHit(AC, out, t, nz, {type:'bandpass', f0:2900, f1:1150, q:.8, gain:.75, dur:.045});
+  }
+  voices++;
+  setTimeout(() => { if(voices > 0) voices--; }, 260);
+}
+let liveNoise = null;
+
+function playDon(){
   const gap = AC.currentTime - lastHitTime;
   lastHitTime = AC.currentTime;
-  LITE = gap < .085 || voices > 14;
-
-  const duck = gap < .07 ? .62 + gap * 5.4 : 1;
-  const out = AC.createGain();
-  out.gain.value = level * duck;
-  out.connect(seComp);
-  if(!LITE) out.connect(revGain);      // 残響は通常打のみ
-
-  voices++;
-  setTimeout(() => { voices--; }, 260);
-  return out;
+  const level = (gap < .07 ? .62 + gap * 5.4 : 1) * .85;
+  kitReady ? playSample(KIT.don, level) : playLive(true, level);
 }
 
-/* ドン＝面。バチの打撃 → 皮の主モード → 胴の空気の共鳴 */
-function playDon(){
-  const t = AC.currentTime + .001;
-  const v = .97 + Math.random() * .06;
-  const out = hitBus(.85);
-
-  click(out, t, 1500 * v, .34, .012);
-  noiseHit(out, t, {type:'lowpass', f0:2600 * v, f1:190, q:.7, gain:.42, dur:.055});
-
-  if(LITE){                                   // 連打中：3層だけ
-    mode(out, t, 176 * v, .70, .80, .17);
-    mode(out, t,  92 * v, .72, .55, .20);
-    return;
-  }
-  noiseHit(out, t, {type:'bandpass', f0:520 * v, f1:150, q:1.1, gain:.30, dur:.10});
-  mode(out, t,  92 * v, .72, .62, .46);      // 胴の空気（一番低い押し）
-  mode(out, t, 176 * v, .70, .78, .34);      // 皮の基音
-  mode(out, t, 262 * v, .68, .34, .21);      // 第2モード
-  mode(out, t, 372 * v, .66, .17, .13);
-  mode(out, t, 498 * v, .64, .08, .085);
-}
-
-/* カッ＝縁。木と木がぶつかる硬い音。余韻はほぼ無い */
 function playKa(){
-  const t = AC.currentTime + .001;
-  const v = .96 + Math.random() * .08;
-  const out = hitBus(.7);
-
-  click(out, t, 3400 * v, .40, .008);
-  noiseHit(out, t, {type:'bandpass', f0:2900 * v, f1:1150, q:.8, gain:.75, dur:.048});
-
-  if(LITE){                                   // 連打中：2層だけ
-    mode(out, t, 1460 * v, .90, .26, .030, 'triangle');
-    return;
-  }
-  noiseHit(out, t, {type:'highpass', f0:7200, f1:5200, q:.7, gain:.30, dur:.016});
-  mode(out, t,  880 * v, .90, .20, .042, 'triangle');
-  mode(out, t, 1460 * v, .90, .26, .036, 'triangle');
-  mode(out, t, 2240 * v, .90, .17, .026, 'triangle');
-  mode(out, t, 3260 * v, .90, .09, .018, 'triangle');
-  mode(out, t,  300 * v, .78, .10, .055);    // 胴がわずかに反応する
+  const gap = AC.currentTime - lastHitTime;
+  lastHitTime = AC.currentTime;
+  const level = (gap < .07 ? .62 + gap * 5.4 : 1) * .7;
+  kitReady ? playSample(KIT.ka, level) : playLive(false, level);
 }
 
 function playPop(){
-  const t = AC.currentTime + .001;
-  const out = hitBus(.9);
-  noiseHit(out, t, {type:'bandpass', f0:1800, f1:6000, q:.6, gain:.55, dur:.16});
-  const o = AC.createOscillator(), g = AC.createGain();
-  o.type = 'square';
-  o.frequency.setValueAtTime(480, t);
-  o.frequency.exponentialRampToValueAtTime(1900, t + .14);
-  g.gain.setValueAtTime(.26, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
-  o.connect(g); g.connect(out); o.start(t); o.stop(t + .24);
+  if(kitReady && KIT.pop.length) playSample(KIT.pop, .9);
+}
+
+/*
+ * 音を鳴らす入口。ここで起きた失敗は握りつぶす。
+ * 発音でエラーが出ると、その先の判定処理ごと止まってしまうため。
+ */
+let audioBroken = false;
+function playHitSound(isDon){
+  if(audioBroken) return;
+  try{
+    if(AC.state !== 'running') AC.resume();
+    if(voices > 28) return;          // 抱えきれない分は無音にして入力を守る
+    isDon ? playDon() : playKa();
+  }catch(err){
+    voices = 0;
+    audioBroken = true;
+    setTimeout(() => { audioBroken = false; }, 1000);
+  }
 }
 
 /* =========================================================
@@ -1183,7 +1265,7 @@ function hit(isDon, big){
   if(!G.running) return;
   const t = now();
   G.drumHit[isDon ? 'l' : 'r'] = performance.now();
-  isDon ? playDon() : playKa();
+  playHitSound(isDon);       // 音が鳴らせなくても判定は必ず続行する
 
   const ns = G.course.notes;
   let target = null, bd = 9;
@@ -1841,6 +1923,8 @@ function renderLibrary(){
   }
   nav.style.display = 'block'; np.style.display = 'block';
 
+  box.appendChild(Object.assign(document.createElement('span'), {className:'spacer'}));
+
   libCache.forEach((s, i) => {
     const cs = parseCourses(s.courses);
     const top = cs.length ? cs[cs.length - 1] : null;
@@ -1853,13 +1937,28 @@ function renderLibrary(){
     b.onclick = () => (i === curIdx ? playFromLibrary(s, b) : focusPlate(i));
     box.appendChild(b);
   });
-  [...box.children].forEach(p => {
+  box.appendChild(Object.assign(document.createElement('span'), {className:'spacer'}));
+
+  plates().forEach(p => {
     const t = p.querySelector('.pt');
     if(t) fitText(t, 17, 7.5, true);
   });
+  layoutRail();
   curIdx = Math.min(curIdx, libCache.length - 1);
   focusPlate(curIdx, true);
-  requestAnimationFrame(() => centerPlate($('#lib').children[curIdx], true));
+  requestAnimationFrame(() => { layoutRail(); centerPlate(plates()[curIdx], true); });
+}
+
+/* かんばん本体だけを取り出す（両端のスペーサーを除く） */
+const plates = () => [...$('#lib').querySelectorAll('.plate')];
+
+/* 両端の余白を「レールの半分 − かんばんの半分」に揃える */
+function layoutRail(){
+  const rail = $('#lib');
+  const first = rail.querySelector('.plate');
+  if(!first) return;
+  const pad = Math.max((rail.clientWidth - first.offsetWidth) / 2, 0);
+  rail.querySelectorAll('.spacer').forEach(sp => { sp.style.width = pad + 'px'; });
 }
 
 /* 実際に描画されている位置を測って中央へ寄せる（余白や拡大の影響を受けない） */
@@ -1872,12 +1971,12 @@ function centerPlate(el, instant){
 }
 
 function focusPlate(i, instant, noScroll){
-  const plates = [...$('#lib').children];
-  if(!plates.length) return;
-  curIdx = clamp(i, 0, plates.length - 1);
-  plates.forEach((p, k) => p.classList.toggle('on', k === curIdx));
+  const ps = plates();
+  if(!ps.length) return;
+  curIdx = clamp(i, 0, ps.length - 1);
+  ps.forEach((p, k) => p.classList.toggle('on', k === curIdx));
 
-  const el = plates[curIdx];
+  const el = ps[curIdx];
   if(!noScroll){
     centerPlate(el, instant);
     // 拡大アニメーションで幅が変わるため、落ち着いてからもう一度合わせる
@@ -1920,12 +2019,12 @@ function parseCourses(str){
 }
 
 function nearestPlate(){
-  const rail = $('#lib'), plates = [...rail.children];
-  if(!plates.length) return -1;
+  const rail = $('#lib'), ps = plates();
+  if(!ps.length) return -1;
   const mid = rail.getBoundingClientRect();
   const c = mid.left + mid.width / 2;
   let best = 0, bd = Infinity;
-  plates.forEach((p, i) => {
+  ps.forEach((p, i) => {
     const r = p.getBoundingClientRect();
     const d = Math.abs(r.left + r.width / 2 - c);
     if(d < bd){ bd = d; best = i; }
@@ -1952,7 +2051,7 @@ function setupRail(){
   $('#rail-prev').onclick = () => focusPlate(curIdx - 1);
   $('#rail-next').onclick = () => focusPlate(curIdx + 1);
   $('#rail-go').onclick = () => {
-    const el = $('#lib').children[curIdx];
+    const el = plates()[curIdx];
     if(el && libCache[curIdx]) playFromLibrary(libCache[curIdx], el);
   };
   addEventListener('keydown', e => {
@@ -1962,7 +2061,7 @@ function setupRail(){
     else if(e.key === 'ArrowRight'){ e.preventDefault(); focusPlate(curIdx + 1); }
     else if(e.key === 'Enter'){
       e.preventDefault();
-      const el = $('#lib').children[curIdx];
+      const el = plates()[curIdx];
       if(el && libCache[curIdx]) playFromLibrary(libCache[curIdx], el);
     }
   });
@@ -2129,7 +2228,8 @@ let fitTimer = 0;
 addEventListener('resize', () => {
   clearTimeout(fitTimer);
   fitTimer = setTimeout(() => {
-    [...$('#lib').children].forEach(p => {
+    layoutRail();
+    plates().forEach(p => {
       const t = p.querySelector('.pt');
       if(t) fitText(t, 17, 7.5, true);
     });
