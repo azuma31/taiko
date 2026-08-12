@@ -906,7 +906,20 @@ async function buildKit(){
 buildKit();
 
 /* ---- 再生。音声ノードは1打あたり2個だけ ---- */
-let lastHitTime = 0, voices = 0;
+let lastHitTime = 0;
+
+/*
+ * 同時発音の数は「直近に鳴らした時刻の並び」で数える。
+ * 以前は再生終了イベントで数を減らしていたが、
+ * iOS ではこのイベントが届かないことがあり、
+ * カウンタが減らないまま上限に達して以後ずっと無音になっていた。
+ */
+const recentHits = [];
+function busyVoices(){
+  const now = AC.currentTime;
+  while(recentHits.length && now - recentHits[0] > .35) recentHits.shift();
+  return recentHits.length;
+}
 
 function playSample(list, level){
   const b = list[(Math.random() * list.length) | 0];
@@ -916,8 +929,7 @@ function playSample(list, level){
   const g = AC.createGain();
   g.gain.value = level;
   s.connect(g); g.connect(seComp);
-  voices++;
-  s.onended = () => { s.disconnect(); g.disconnect(); if(voices > 0) voices--; };
+  s.onended = () => { try{ s.disconnect(); g.disconnect(); }catch(e){} };
   s.start();
 }
 
@@ -934,8 +946,6 @@ function playLive(isDon, level){
     click(AC, out, t, 3400, .40, .008);
     noiseHit(AC, out, t, nz, {type:'bandpass', f0:2900, f1:1150, q:.8, gain:.75, dur:.045});
   }
-  voices++;
-  setTimeout(() => { if(voices > 0) voices--; }, 260);
 }
 let liveNoise = null;
 
@@ -966,10 +976,11 @@ function playHitSound(isDon){
   if(audioBroken) return;
   try{
     if(AC.state !== 'running') AC.resume();
-    if(voices > 28) return;          // 抱えきれない分は無音にして入力を守る
+    if(busyVoices() > 24) return;     // 抱えきれない分だけ無音にして入力を守る
+    recentHits.push(AC.currentTime);
     isDon ? playDon() : playKa();
   }catch(err){
-    voices = 0;
+    recentHits.length = 0;
     audioBroken = true;
     setTimeout(() => { audioBroken = false; }, 1000);
   }
@@ -1232,7 +1243,7 @@ function startGame(idx){
   $('#g-title').textContent = (song.headers.TITLE || '') + ' / ' + courseLabel(c) + ' ★' + (c.level || '?');
   document.body.classList.add('playing');
   show('s-game');
-  requestAnimationFrame(loop);
+  requestAnimationFrame(() => { measurePads(); loop(); });
 }
 
 const now = () => AC.currentTime - G.startAt + CFG.offset;
@@ -1714,33 +1725,56 @@ addEventListener('keydown', e => {
 const padsEl = $('#pads');
 const padButtons = [...padsEl.querySelectorAll('button')];
 
-function padAt(clientX, clientY){
-  for(const b of padButtons){
+/* 判定用の境界は都度計測せずキャッシュする（連打中の計測落ちを防ぐ） */
+let padEdges = null;
+function measurePads(){
+  padEdges = padButtons.map(b => {
     const r = b.getBoundingClientRect();
-    // 上下は枠内なら許容し、横位置だけで区切る（縁を叩き外さないように）
-    if(clientX >= r.left && clientX < r.right) return b;
+    return {left:r.left, right:r.right, el:b, don: b.dataset.k === 'don'};
+  });
+}
+addEventListener('resize', () => { padEdges = null; });
+addEventListener('orientationchange', () => { padEdges = null; });
+
+function padAt(clientX){
+  if(!padEdges || !padEdges.length || padEdges[0].right === 0) measurePads();
+  for(const p of padEdges){
+    if(clientX >= p.left && clientX < p.right) return p;
   }
-  const r = padsEl.getBoundingClientRect();
-  if(clientX < r.left + r.width / 2) return padButtons[0];
-  return padButtons[padButtons.length - 1];
+  // 枠の外側に落ちた指も、近い側の縁として拾う
+  return clientX < padEdges[0].left ? padEdges[0] : padEdges[padEdges.length - 1];
 }
 
-padsEl.addEventListener('touchstart', e => {
-  touchMode = true;
-  e.preventDefault();
-  for(const t of e.changedTouches){
-    const b = padAt(t.clientX, t.clientY);
-    if(b) tap(b.dataset.k === 'don', b);
-  }
-}, {passive:false});
+function padHit(clientX){
+  const p = padAt(clientX);
+  if(p) tap(p.don, p.el);
+}
 
-padsEl.addEventListener('mousedown', e => {
-  if(touchMode) return;
-  e.preventDefault();
-  const b = padAt(e.clientX, e.clientY);
-  if(b) tap(b.dataset.k === 'don', b);
-});
+/*
+ * 指ごとに独立して拾えるよう、Pointer Events があればそちらを使う。
+ * touch では、先の指が触れたままだと次の指のイベントが
+ * 最初の要素にまとめて届き、取りこぼす端末があるため。
+ */
+if(window.PointerEvent){
+  padsEl.addEventListener('pointerdown', e => {
+    if(e.pointerType !== 'mouse') touchMode = true;
+    e.preventDefault();
+    padHit(e.clientX);
+  });
+}else{
+  padsEl.addEventListener('touchstart', e => {
+    touchMode = true;
+    e.preventDefault();
+    for(let i = 0; i < e.changedTouches.length; i++) padHit(e.changedTouches[i].clientX);
+  }, {passive:false});
+  padsEl.addEventListener('mousedown', e => {
+    if(touchMode) return;
+    e.preventDefault();
+    padHit(e.clientX);
+  });
+}
 padsEl.addEventListener('contextmenu', e => e.preventDefault());
+padsEl.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
 
 /* 譜面を直接タップ：外側＝縁（カッ）, 内側＝面（ドン） */
 function laneHit(clientX){
