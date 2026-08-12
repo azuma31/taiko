@@ -1252,7 +1252,7 @@ function startGame(idx){
   G.course = c;
   c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
   Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
-    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitBy:{}, running:true});
+    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitColor:{}, running:true});
   G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
   G.base = c.scoreInit || 300;
   G.diff = c.scoreDiff || 100;
@@ -1338,15 +1338,11 @@ function hit(isDon, evTime, src){
 
   const ns = G.course.notes;
   /*
-   * 判定するのは「一番近い音符」ではなく「判定窓に入っている最も古い音符」。
-   * 近い方を選ぶと、少し遅れて叩いたときに次の音符を先に取ってしまい、
-   * 手前の音符が叩かれないまま不可になる。連符が一つも繋がらない原因がこれ。
-   */
-  /*
-   * 色違いの入力は音符を「消費しない」（本家仕様）。
-   * 以前は色違いで手前の音符を不可にして入力も消していたため、
-   * 連符で一度ずれると以降ぜんぶ不可が連鎖していた。
-   * 窓内で色の合う最古の音符を探し、無ければ入力は不発にする。
+   * 本家仕様: 判定窓（早い側も遅い側も不可の幅）に入っている
+   * 同色の最古の音符を判定する。早すぎても不可窓に入っていれば
+   * 「早すぎ不可」として音符を消費する（いわゆる巻き込み不可も本家どおり）。
+   * 窓の外はどちら側でも不発（音符を消さない）。
+   * 残骸の心配は不要: 窓を過ぎた音符は次のフレームで即・見逃し不可になる。
    */
   let target = null, bd = 0;
   for(const n of ns){
@@ -1354,44 +1350,29 @@ function hit(isDon, evTime, src){
     const wantDon = n.type === T.DON || n.type === T.DONB;
     if(wantDon !== isDon) continue;    // 色違いは飛ばす（消さない）
     const d = t - n.time;
-    /*
-     * 早い側は可の窓まで。不可の窓まで拾うと、ほぼ同時押しの2打目が
-     * 「次の音符を早すぎ不可」として先食いし、本命の入力が
-     * 消えた音符を叩いて無反応になる連鎖が起きる。
-     * 早すぎる入力は音符を消さず不発にする。
-     */
-    if(d < -JUDGE.OK) break;           // ここから先はまだ早すぎる（消さない）
+    if(d < -JUDGE.BAD) break;          // まだ窓に入っていない → 不発
     if(d > JUDGE.BAD) continue;        // すでに窓を過ぎた
-    /*
-     * 基本は最古の音符を判定する。ただし最古が「不可」相当の遅さで、
-     * 次の音符の方が明らかに近いなら、次を判定する。
-     * 最古に固定すると、一打抜けた後の入力が残骸を遅すぎ不可で拾い続け、
-     * ずれが永久に直らない。乗り換えれば残骸1個の不可だけで復帰できる。
-     */
-    if(!target){
-      target = n; bd = Math.abs(d);
-      if(bd <= JUDGE.OK) break;        // 良・可なら確定
-      continue;                        // 不可相当 → 次の音符と比べる
-    }
-    const ad = Math.abs(d);
-    if(ad <= JUDGE.OK && ad < bd){ target = n; bd = ad; }
-    break;
+    target = n; bd = Math.abs(d);
+    break;                             // 窓内で最古の音符に確定
   }
 
   /*
-   * ほぼ同時の2打目には音符を消費させない（連打のカウントには影響しない）。
-   * 比較は必ず「巻き戻し後の譜面時刻」で行うこと。performance.now() で
-   * 比べると、処理が混んで2打分のイベントがまとめて配達されたとき、
-   * 実際は1音符ぶん離れた2打目まで同時押し扱いでブロックしてしまう。
-   * これが二本指のときだけ反応が消える主因だった。
+   * 比較は必ず「巻き戻し後の譜面時刻」で行うこと。performance.now() だと
+   * イベントがまとめて配達されたとき2打目まで同時扱いになってしまう。
+   * 本家は1フレーム(約16.7ms)以内の同色入力を1打として扱う。
+   * どのボタン・どの指かは関係なく「色」単位で束ねる。
+   * これで両手同時のドンが次の音符を先食いすることはなくなり、
+   * 16.7msより離れた交互連打はすべて別の打として判定される。
+   * 束ねられた2打目も連打(activeRoll)のカウントには使える。
+   * 巻き戻しで時刻が逆行することがあるため、差がマイナスなら束ねない。
    */
-  /* ガードは同じボタンの連続入力にだけ効かせる。別のボタン同士は対象外 */
-  /* 巻き戻しの都合で時刻が逆行することがある。差がマイナスならブロックしない */
-  const df = t - (G.lastHitBy[src] ?? -9);
-  if(target && src != null && df >= 0 && df < .03) target = null;
+  const col = isDon ? 'don' : 'ka';
+  const df = t - (G.lastHitColor[col] ?? -9);
+  const merged = df >= 0 && df < .0167;
+  if(!merged) G.lastHitColor[col] = t;
+  if(merged) target = null;
 
   if(target){
-    if(src != null) G.lastHitBy[src] = t;
     target.done = true; target.hitAt = t;
     const isBig = target.type === T.DONB || target.type === T.KAB;
     const mul = isBig ? 2 : 1;
@@ -1438,12 +1419,13 @@ function update(t){
         hit(isDon, 0); continue;
       }
       /*
-       * hitTime() は最大400msの入力遅延を巻き戻して判定する。
-       * 不可にする猶予がそれより短いと、遅れて届いた入力が
-       * 「もう消えた音符」を叩くことになり無反応で抜け落ちる。
-       * 猶予は遅延許容(400ms)より必ず長くしておく。
+       * 本家どおり、不可の窓が閉じた瞬間に見逃し不可を出す。
+       * 猶予は不要。描画が固まって入力の配達が遅れるときは
+       * rAF(=この update)も同じだけ止まっており、復帰時は
+       * ブラウザが溜まった入力イベントを rAF より先に配達するため、
+       * 巻き戻した入力が先に音符を消費してからここに来る。
        */
-      if(t > n.time + JUDGE.BAD + .45) miss(n);
+      if(t > n.time + JUDGE.BAD) miss(n);
     }else{
       if(CFG.auto && t >= n.time && t <= n.end){
         if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
