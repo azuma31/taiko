@@ -404,7 +404,7 @@ body.touch .padlabel{display:grid}
 .gamebar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;
   color:var(--mute);font-size:11px;letter-spacing:.12em}
 body.playing{overflow:hidden;overscroll-behavior:none;touch-action:none;
-  -webkit-user-select:none;user-select:none}
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body.playing #s-game{touch-action:none}
 
 /* 演奏中（タッチ端末）は画面いっぱいを使い、太鼓を大きく置く */
@@ -2002,6 +2002,18 @@ document.addEventListener('touchend', e => {
   }
   e.preventDefault();
 }, {passive:false});
+
+/*
+ * iOS 専用: 2本の指が同時に触れていると Safari はピンチ（ズーム）候補として
+ * ジェスチャー認識を始め、認識中は後続の touchstart を保留・破棄することがある。
+ * 速い連打では前の指が離れる前に次の指が着くため常にこの状態になり、
+ * 「単符や2連は取れるのに3連以降が抜ける」symptom の原因になる。
+ * gesturestart 系を preventDefault すると認識自体が打ち切られる。
+ * これらのイベントは iOS にしか無いので他環境には影響しない。
+ */
+for(const ev of ['gesturestart', 'gesturechange', 'gestureend']){
+  document.addEventListener(ev, e => { if(G.running) e.preventDefault(); }, {passive:false});
+}
 
 /* 全画面・中断 */
 $('#fs').onclick = async () => {
