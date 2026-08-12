@@ -1985,6 +1985,24 @@ padsEl.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('touchmove', e => { if(G.running) e.preventDefault(); }, {passive:false});
 
+/*
+ * iOS 13以降のSafariは、連続タップするとタップジェスチャー認識のために
+ * 2回目以降の touchstart を発生させないことがある（連打で片方の指の
+ * イベントがまるごと消え、パッドの点灯すら起きない症状の正体）。
+ * touchend で preventDefault を呼ぶとこの抑制が解除され、
+ * すべてのタップで touchstart が発生するようになる。
+ * ただし preventDefault すると click が合成されなくなるため、
+ * 演奏中だけに限定し、中断・全画面ボタンの上で離した指は素通しする。
+ */
+document.addEventListener('touchend', e => {
+  if(!G.running || !e.cancelable) return;
+  for(let i = 0; i < e.changedTouches.length; i++){
+    const t = e.changedTouches[i];
+    if(inGamebar(t.clientX, t.clientY)) return;   // ボタンの click を生かす
+  }
+  e.preventDefault();
+}, {passive:false});
+
 /* 全画面・中断 */
 $('#fs').onclick = async () => {
   const el = $('#s-game');
