@@ -1321,7 +1321,12 @@ function hitTime(evTime){
   const t = now();
   if(!evTime) return t;
   const lag = performance.now() - evTime;
-  if(!(lag > 0) || lag > 150) return t;         // 異常値は無視
+  /*
+   * 上限は時計系の異常値をはじくためだけのもの。低スペック端末では
+   * 描画ジャンクで配達が200〜300ms遅れることが普通にあり、150msで
+   * 打ち切ると「正しく押したのに遅い時刻として判定→無反応」になる。
+   */
+  if(!(lag > 0) || lag > 400) return t;         // 異常値は無視
   return t - lag / 1000;
 }
 
@@ -1381,7 +1386,9 @@ function hit(isDon, evTime, src){
    * これが二本指のときだけ反応が消える主因だった。
    */
   /* ガードは同じボタンの連続入力にだけ効かせる。別のボタン同士は対象外 */
-  if(target && src != null && t - (G.lastHitBy[src] ?? -9) < .03) target = null;
+  /* 巻き戻しの都合で時刻が逆行することがある。差がマイナスならブロックしない */
+  const df = t - (G.lastHitBy[src] ?? -9);
+  if(target && src != null && df >= 0 && df < .03) target = null;
 
   if(target){
     if(src != null) G.lastHitBy[src] = t;
@@ -1431,12 +1438,12 @@ function update(t){
         hit(isDon, 0); continue;
       }
       /*
-       * hitTime() は最大150msの入力遅延を巻き戻して判定する。
+       * hitTime() は最大400msの入力遅延を巻き戻して判定する。
        * 不可にする猶予がそれより短いと、遅れて届いた入力が
        * 「もう消えた音符」を叩くことになり無反応で抜け落ちる。
-       * 猶予は遅延許容(150ms)より必ず長くしておく。
+       * 猶予は遅延許容(400ms)より必ず長くしておく。
        */
-      if(t > n.time + JUDGE.BAD + .16) miss(n);
+      if(t > n.time + JUDGE.BAD + .45) miss(n);
     }else{
       if(CFG.auto && t >= n.time && t <= n.end){
         if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
@@ -1826,9 +1833,10 @@ const padsEl = $('#pads');
 const padButtons = [...padsEl.querySelectorAll('button')];
 
 /* 判定用の境界は都度計測せずキャッシュする（連打中の計測落ちを防ぐ） */
-let padEdges = null, padW = -1, barBoxes = [];
+let padEdges = null, padW = -1, barBoxes = [], cvRect = null;
 function measurePads(){
   padW = padsEl.clientWidth;
+  cvRect = cv.getBoundingClientRect();
   padEdges = padButtons.map((b, i) => {
     const r = b.getBoundingClientRect();
     return {left:r.left, right:r.right, el:b, id:'pad' + i, don: b.dataset.k === 'don'};
@@ -1883,7 +1891,9 @@ function gameInput(clientX, clientY, evTime){
   if(!G.running) return false;
   if(inGamebar(clientX, clientY)) return false;
 
-  const cvR = cv.getBoundingClientRect();
+  /* 毎回測るとレイアウト計算を強制して連打中のジャンクを招くのでキャッシュを使う */
+  if(!padEdges || !cvRect || padsEl.clientWidth !== padW) measurePads();
+  const cvR = cvRect;
   /* 譜面より下（パッドの周りの余白もふくむ）は、すべて太鼓として拾う */
   if(clientY >= cvR.bottom - 2){
     const p = padAt(clientX);
