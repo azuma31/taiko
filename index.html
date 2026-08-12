@@ -1252,7 +1252,7 @@ function startGame(idx){
   G.course = c;
   c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
   Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
-    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, running:true});
+    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitT:null, running:true});
   G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
   G.base = c.scoreInit || 300;
   G.diff = c.scoreDiff || 100;
@@ -1346,32 +1346,44 @@ function hit(isDon, evTime){
   let target = null, bd = 0;
   for(const n of ns){
     if(n.type >= 5 || n.done) continue;
+    const wantDon = n.type === T.DON || n.type === T.DONB;
+    if(wantDon !== isDon) continue;    // 色違いは飛ばす（消さない）
     const d = t - n.time;
     /*
-     * 早い側は可の窓まで。不可の窓まで拾うと、2本指のほぼ同時押しの
-     * 2打目が「次の音符を早すぎ不可」として先食いし、本命の入力が
-     * 消えた音符を叩いて無反応になる連鎖が起きる（16分間隔94ms < 不可窓108ms）。
-     * 早すぎる入力は音符を消さず不発にする。遅い側は従来どおり不可まで拾う。
+     * 早い側は可の窓まで。不可の窓まで拾うと、ほぼ同時押しの2打目が
+     * 「次の音符を早すぎ不可」として先食いし、本命の入力が
+     * 消えた音符を叩いて無反応になる連鎖が起きる。
+     * 早すぎる入力は音符を消さず不発にする。
      */
     if(d < -JUDGE.OK) break;           // ここから先はまだ早すぎる（消さない）
     if(d > JUDGE.BAD) continue;        // すでに窓を過ぎた
-    const wantDon = n.type === T.DON || n.type === T.DONB;
-    if(wantDon !== isDon) continue;    // 色違いは飛ばす（消さない）
-    target = n; bd = Math.abs(d);
+    /*
+     * 基本は最古の音符を判定する。ただし最古が「不可」相当の遅さで、
+     * 次の音符の方が明らかに近いなら、次を判定する。
+     * 最古に固定すると、一打抜けた後の入力が残骸を遅すぎ不可で拾い続け、
+     * ずれが永久に直らない。乗り換えれば残骸1個の不可だけで復帰できる。
+     */
+    if(!target){
+      target = n; bd = Math.abs(d);
+      if(bd <= JUDGE.OK) break;        // 良・可なら確定
+      continue;                        // 不可相当 → 次の音符と比べる
+    }
+    const ad = Math.abs(d);
+    if(ad <= JUDGE.OK && ad < bd){ target = n; bd = ad; }
     break;
   }
 
   /*
-   * ほぼ同時に届いた2打目には音符を消費させない（連打の判定には影響しない）。
-   * 「判定ゆるめ」では可の窓(105ms)が16分間隔(94ms)を超えるため、
-   * 上の早すぎ判定だけでは同時押しの先食いを防ぎきれない。
-   * 30msは32分・240BPM(31ms)より短く、正規の連符は落とさない。
+   * ほぼ同時の2打目には音符を消費させない（連打のカウントには影響しない）。
+   * 比較は必ず「巻き戻し後の譜面時刻」で行うこと。performance.now() で
+   * 比べると、処理が混んで2打分のイベントがまとめて配達されたとき、
+   * 実際は1音符ぶん離れた2打目まで同時押し扱いでブロックしてしまう。
+   * これが二本指のときだけ反応が消える主因だった。
    */
-  const pn = performance.now();
-  if(target && pn - (G.lastNoteHit || 0) < 30) target = null;
+  if(target && t - (G.lastHitT ?? -9) < .03) target = null;
 
   if(target){
-    G.lastNoteHit = pn;
+    G.lastHitT = t;
     target.done = true; target.hitAt = t;
     const isBig = target.type === T.DONB || target.type === T.KAB;
     const mul = isBig ? 2 : 1;
