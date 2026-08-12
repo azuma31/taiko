@@ -363,16 +363,36 @@ body{
 #cv{width:100%;display:block;border-radius:2px;background:#070a12;touch-action:none;
   box-shadow:0 10px 40px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;
   -webkit-tap-highlight-color:transparent}
-#pads{display:none;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;touch-action:none}
+/* 太鼓を模した操作パッド */
+#pads{
+  display:none;grid-template-columns:1fr 1.25fr 1.25fr 1fr;gap:0;margin-top:12px;
+  touch-action:none;border-radius:70px/64px;overflow:hidden;
+  background:#241a10;padding:7px;
+  box-shadow:0 6px 0 rgba(0,0,0,.5),0 14px 30px rgba(0,0,0,.5),
+             inset 0 0 0 3px #c9a02e,inset 0 0 0 6px #7d6114;
+}
 body.touch #pads{display:grid}
 #pads button{
-  padding:30px 0;border:0;border-radius:3px;font:inherit;font-size:14px;font-weight:800;color:#fff;
-  letter-spacing:.16em;touch-action:none;-webkit-user-select:none;user-select:none;
-  -webkit-tap-highlight-color:transparent;transition:filter .07s,transform .07s;
+  position:relative;padding:34px 0 32px;border:0;font:inherit;font-size:15px;font-weight:800;
+  color:#fff;letter-spacing:.2em;touch-action:none;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;transition:filter .06s,transform .06s;
+  text-shadow:0 2px 4px rgba(0,0,0,.55);
 }
-#pads button.on{filter:brightness(1.5);transform:scale(.97)}
-#pads .ka{background:linear-gradient(180deg,#3f8ecd,#245f95);box-shadow:inset 0 -4px 0 rgba(0,0,0,.32)}
-#pads .don{background:linear-gradient(180deg,#e0483a,#a52a1f);box-shadow:inset 0 -4px 0 rgba(0,0,0,.32)}
+#pads button::after{            /* 面の艶 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,0) 46%,rgba(0,0,0,.18));
+}
+#pads button.on{filter:brightness(1.6)}
+#pads .ka{background:radial-gradient(120% 130% at 50% 20%,#4e9ad8,#2a6ba6 62%,#1b4a78)}
+#pads .don{background:radial-gradient(120% 130% at 50% 20%,#f0614f,#c2352c 60%,#8e2318)}
+#pads .ka:first-child{border-radius:64px 0 0 64px}
+#pads .ka:last-child{border-radius:0 64px 64px 0}
+#pads .don{box-shadow:inset 1px 0 0 rgba(0,0,0,.3),inset -1px 0 0 rgba(0,0,0,.3)}
+.padlabel{
+  display:none;grid-template-columns:1fr 1.25fr 1.25fr 1fr;margin-top:7px;
+  color:var(--mute);font-size:9.5px;letter-spacing:.18em;text-align:center;
+}
+body.touch .padlabel{display:grid}
 .gamebar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;
   color:var(--mute);font-size:11px;letter-spacing:.12em}
 body.playing{overflow:hidden;overscroll-behavior:none}
@@ -531,6 +551,7 @@ body.playing{overflow:hidden;overscroll-behavior:none}
       <button class="don" data-k="don">ドン</button>
       <button class="ka" data-k="ka">カッ</button>
     </div>
+    <div class="padlabel"><span>縁</span><span>面</span><span>面</span><span>縁</span></div>
     <div class="gamebar">
       <span id="g-title"></span>
       <span style="display:flex;gap:8px;align-items:center;flex:none">
@@ -798,16 +819,22 @@ function click(out, t, freq, amp, dur){
   o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .01);
 }
 
-let lastHitTime = 0;
+let lastHitTime = 0, voices = 0, LITE = false;
+
+/* 連打中は音の作りを軽くする。端末が詰まると入力が落ちるため */
 function hitBus(level){
-  /* 高速連打で音が飽和しないよう、直前の打点が近いほど少し絞る */
   const gap = AC.currentTime - lastHitTime;
   lastHitTime = AC.currentTime;
+  LITE = gap < .085 || voices > 14;
+
   const duck = gap < .07 ? .62 + gap * 5.4 : 1;
   const out = AC.createGain();
   out.gain.value = level * duck;
   out.connect(seComp);
-  out.connect(revGain);
+  if(!LITE) out.connect(revGain);      // 残響は通常打のみ
+
+  voices++;
+  setTimeout(() => { voices--; }, 260);
   return out;
 }
 
@@ -818,9 +845,14 @@ function playDon(){
   const out = hitBus(.85);
 
   click(out, t, 1500 * v, .34, .012);
-  noiseHit(out, t, {type:'lowpass',  f0:2600 * v, f1:190, q:.7,  gain:.42, dur:.055});
-  noiseHit(out, t, {type:'bandpass', f0:520 * v,  f1:150, q:1.1, gain:.30, dur:.10});
+  noiseHit(out, t, {type:'lowpass', f0:2600 * v, f1:190, q:.7, gain:.42, dur:.055});
 
+  if(LITE){                                   // 連打中：3層だけ
+    mode(out, t, 176 * v, .70, .80, .17);
+    mode(out, t,  92 * v, .72, .55, .20);
+    return;
+  }
+  noiseHit(out, t, {type:'bandpass', f0:520 * v, f1:150, q:1.1, gain:.30, dur:.10});
   mode(out, t,  92 * v, .72, .62, .46);      // 胴の空気（一番低い押し）
   mode(out, t, 176 * v, .70, .78, .34);      // 皮の基音
   mode(out, t, 262 * v, .68, .34, .21);      // 第2モード
@@ -835,9 +867,13 @@ function playKa(){
   const out = hitBus(.7);
 
   click(out, t, 3400 * v, .40, .008);
-  noiseHit(out, t, {type:'bandpass', f0:2900 * v, f1:1150, q:.8,  gain:.75, dur:.048});
-  noiseHit(out, t, {type:'highpass', f0:7200,     f1:5200, q:.7,  gain:.30, dur:.016});
+  noiseHit(out, t, {type:'bandpass', f0:2900 * v, f1:1150, q:.8, gain:.75, dur:.048});
 
+  if(LITE){                                   // 連打中：2層だけ
+    mode(out, t, 1460 * v, .90, .26, .030, 'triangle');
+    return;
+  }
+  noiseHit(out, t, {type:'highpass', f0:7200, f1:5200, q:.7, gain:.30, dur:.016});
   mode(out, t,  880 * v, .90, .20, .042, 'triangle');
   mode(out, t, 1460 * v, .90, .26, .036, 'triangle');
   mode(out, t, 2240 * v, .90, .17, .026, 'triangle');
@@ -860,15 +896,60 @@ function playPop(){
 /* =========================================================
    3. 読み込み UI
 ========================================================= */
-let song = null, audioBuf = null, audioName = '';
+let song = null, audioBuf = null, audioName = '', audioMedia = null;
+
+/* Safari は decodeAudioData がコールバック形式のみの版があるので両対応にする */
+function decodeAudio(buf){
+  return new Promise((res, rej) => {
+    let done = false;
+    const ok = b => { if(!done){ done = true; res(b); } };
+    const ng = e => { if(!done){ done = true; rej(e || new Error('decode failed')); } };
+    let p;
+    try{ p = AC.decodeAudioData(buf, ok, ng); }catch(e){ ng(e); return; }
+    if(p && typeof p.then === 'function') p.then(ok, ng);
+  });
+}
+
+const MIME = {ogg:'audio/ogg', mp3:'audio/mpeg', wav:'audio/wav',
+              m4a:'audio/mp4', aac:'audio/aac', flac:'audio/flac'};
+const mimeOf = name => MIME[String(name).split('.').pop().toLowerCase()] || 'audio/mpeg';
+
+/* デコードできない形式でも、ブラウザの再生機能なら鳴ることがあるので試す */
+function makeMediaFallback(buf, name){
+  return new Promise(res => {
+    const el = new Audio();
+    if(!el.canPlayType || !el.canPlayType(mimeOf(name))){ res(null); return; }
+    const url = URL.createObjectURL(new Blob([buf], {type: mimeOf(name)}));
+    el.src = url; el.preload = 'auto';
+    el.oncanplaythrough = () => res({el, url});
+    el.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    setTimeout(() => res(null), 8000);
+  });
+}
 
 async function useSong(tjaText, audBuf, audName){
   const parsed = parseTJA(tjaText);
   if(!parsed.courses.length){ alert('譜面（#START〜#END）が見つかりません'); return false; }
+
   audioBuf = null; audioName = '';
+  if(audioMedia){ try{ URL.revokeObjectURL(audioMedia.url); }catch(e){} audioMedia = null; }
+
   if(audBuf){
-    try{ audioBuf = await AC.decodeAudioData(audBuf); audioName = audName || ''; }
-    catch(err){ alert('音源を再生できませんでした: ' + (audName || '')); }
+    const copy = audBuf.slice(0);          // decodeAudioData は元のバッファを切り離すため控えを取る
+    try{
+      audioBuf = await decodeAudio(audBuf);
+      audioName = audName || '';
+    }catch(err){
+      audioMedia = await makeMediaFallback(copy, audName);
+      if(audioMedia){
+        audioMedia.el.volume = bgmGain.gain.value;
+        audioName = audName || '';
+      }else{
+        const ext = String(audName || '').split('.').pop().toUpperCase();
+        alert('この端末では ' + ext + ' 形式を再生できません。\n譜面だけで演奏します。\n' +
+              'iPhone や iPad では MP3 か M4A でアップロードしてください。');
+      }
+    }
   }
   song = parsed;
   renderSelect();
@@ -967,7 +1048,10 @@ function bindOpts(){
   };
   bind('speed','v-speed', v => CFG.speed = v);
   bind('off','v-off', v => CFG.offset = v / 1000);
-  bind('bgm','v-bgm', v => bgmGain.gain.value = v / 100);
+  bind('bgm','v-bgm', v => {
+    bgmGain.gain.value = v / 100;
+    if(audioMedia) audioMedia.el.volume = v / 100;
+  });
   bind('se','v-se', v => seGain.gain.value = v / 100);
 
   const chk = (key, fn) => {
@@ -1049,14 +1133,19 @@ function startGame(idx){
   const lead = Math.max(2.2, -Math.min(first, 0) + 1.2);
   G.startAt = AC.currentTime + lead;
 
-  if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
+  stopAudio();
   if(audioBuf){
     const s = AC.createBufferSource();
     s.buffer = audioBuf; s.connect(bgmGain); s.start(G.startAt);
     G.src = s;
+  }else if(audioMedia){
+    const el = audioMedia.el;
+    el.currentTime = 0; el.volume = bgmGain.gain.value;
+    G.mediaTimer = setTimeout(() => { el.play().catch(() => {}); }, lead * 1000);
   }
+  const dur = audioBuf ? audioBuf.duration : (audioMedia ? (audioMedia.el.duration || 0) : 0);
   const last = c.notes.length ? Math.max(...c.notes.map(n => Math.max(n.time, n.end || 0))) : 0;
-  G.endAt = Math.max(last + 2.5, audioBuf ? audioBuf.duration : 0);
+  G.endAt = Math.max(last + 2.5, dur || 0);
 
   $('#g-title').textContent = (song.headers.TITLE || '') + ' / ' + courseLabel(c) + ' ★' + (c.level || '?');
   document.body.classList.add('playing');
@@ -1066,11 +1155,17 @@ function startGame(idx){
 
 const now = () => AC.currentTime - G.startAt + CFG.offset;
 
+function stopAudio(){
+  if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
+  clearTimeout(G.mediaTimer);
+  if(audioMedia){ try{ audioMedia.el.pause(); }catch(e){} }
+}
+
 function quit(){
   G.running = false;
   document.body.classList.remove('playing');
   if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
+  stopAudio();
 }
 
 /* ---- 判定 ---- */
@@ -1499,11 +1594,16 @@ function showResult(){
 const KEYS = {KeyF:'don', KeyJ:'don', KeyD:'ka', KeyK:'ka', Space:'don'};
 let touchMode = false;
 
+const padTimers = new WeakMap();
 function tap(isDon, el){
   if(!G.running) return;                       // 演奏中以外は鳴らさない
   if(AC.state === 'suspended') AC.resume();
   hit(isDon);
-  if(el){ el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 90); }
+  if(el){
+    el.classList.add('on');
+    clearTimeout(padTimers.get(el));           // 連打でタイマーを積み上げない
+    padTimers.set(el, setTimeout(() => el.classList.remove('on'), 80));
+  }
 }
 
 /* 入力欄に文字を打っている間は、太鼓のキーを横取りしない */
@@ -1524,18 +1624,41 @@ addEventListener('keydown', e => {
 });
 
 /* 画面下のボタン。指ごとに touchstart が飛ぶので同時押しもそのまま拾える */
-document.querySelectorAll('#pads button').forEach(b => {
-  const isDon = b.dataset.k === 'don';
-  b.addEventListener('touchstart', e => {
-    touchMode = true; e.preventDefault();
-    for(let i = 0; i < e.changedTouches.length; i++) tap(isDon, b);
-  }, {passive:false});
-  b.addEventListener('mousedown', e => {
-    if(touchMode) return;
-    e.preventDefault(); tap(isDon, b);
-  });
-  b.addEventListener('contextmenu', e => e.preventDefault());
+/*
+ * パッドは個々のボタンではなく、枠全体で touchstart を受ける。
+ * ボタンの隙間や枠の余白に指が落ちても取りこぼさず、
+ * 何本指で同時に叩いても指の数だけ判定できる。
+ */
+const padsEl = $('#pads');
+const padButtons = [...padsEl.querySelectorAll('button')];
+
+function padAt(clientX, clientY){
+  for(const b of padButtons){
+    const r = b.getBoundingClientRect();
+    // 上下は枠内なら許容し、横位置だけで区切る（縁を叩き外さないように）
+    if(clientX >= r.left && clientX < r.right) return b;
+  }
+  const r = padsEl.getBoundingClientRect();
+  if(clientX < r.left + r.width / 2) return padButtons[0];
+  return padButtons[padButtons.length - 1];
+}
+
+padsEl.addEventListener('touchstart', e => {
+  touchMode = true;
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const b = padAt(t.clientX, t.clientY);
+    if(b) tap(b.dataset.k === 'don', b);
+  }
+}, {passive:false});
+
+padsEl.addEventListener('mousedown', e => {
+  if(touchMode) return;
+  e.preventDefault();
+  const b = padAt(e.clientX, e.clientY);
+  if(b) tap(b.dataset.k === 'don', b);
 });
+padsEl.addEventListener('contextmenu', e => e.preventDefault());
 
 /* 譜面を直接タップ：外側＝縁（カッ）, 内側＝面（ドン） */
 function laneHit(clientX){
@@ -1704,7 +1827,7 @@ const plateColor = t => {
   return PLATE_COLORS[h % PLATE_COLORS.length];
 };
 
-let curIdx = 0;
+let curIdx = 0, recenterTimer = 0, scrollTimer = 0, userScroll = false;
 
 function renderLibrary(){
   const box = $('#lib');
@@ -1736,20 +1859,31 @@ function renderLibrary(){
   });
   curIdx = Math.min(curIdx, libCache.length - 1);
   focusPlate(curIdx, true);
+  requestAnimationFrame(() => centerPlate($('#lib').children[curIdx], true));
 }
 
-function focusPlate(i, instant){
+/* 実際に描画されている位置を測って中央へ寄せる（余白や拡大の影響を受けない） */
+function centerPlate(el, instant){
+  const rail = $('#lib');
+  const r = rail.getBoundingClientRect(), e = el.getBoundingClientRect();
+  const delta = (e.left + e.width / 2) - (r.left + r.width / 2);
+  if(Math.abs(delta) < 1) return;
+  rail.scrollBy({left: delta, behavior: instant ? 'auto' : 'smooth'});
+}
+
+function focusPlate(i, instant, noScroll){
   const plates = [...$('#lib').children];
   if(!plates.length) return;
   curIdx = clamp(i, 0, plates.length - 1);
   plates.forEach((p, k) => p.classList.toggle('on', k === curIdx));
 
   const el = plates[curIdx];
-  const rail = $('#lib');
-  rail.scrollTo({
-    left: el.offsetLeft - rail.clientWidth / 2 + el.offsetWidth / 2,
-    behavior: instant ? 'auto' : 'smooth'
-  });
+  if(!noScroll){
+    centerPlate(el, instant);
+    // 拡大アニメーションで幅が変わるため、落ち着いてからもう一度合わせる
+    clearTimeout(recenterTimer);
+    recenterTimer = setTimeout(() => centerPlate(el, true), 300);
+  }
 
   const s = libCache[curIdx];
   $('#np-title').textContent = s.title;
@@ -1785,7 +1919,36 @@ function parseCourses(str){
   return out.sort((a, b) => a.di - b.di);
 }
 
+function nearestPlate(){
+  const rail = $('#lib'), plates = [...rail.children];
+  if(!plates.length) return -1;
+  const mid = rail.getBoundingClientRect();
+  const c = mid.left + mid.width / 2;
+  let best = 0, bd = Infinity;
+  plates.forEach((p, i) => {
+    const r = p.getBoundingClientRect();
+    const d = Math.abs(r.left + r.width / 2 - c);
+    if(d < bd){ bd = d; best = i; }
+  });
+  return best;
+}
+
 function setupRail(){
+  const rail = $('#lib');
+
+  // 指でスワイプしたときは、止まった位置の曲を選択状態にする
+  rail.addEventListener('scroll', () => {
+    if(!userScroll) return;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const i = nearestPlate();
+      if(i >= 0 && i !== curIdx) focusPlate(i, true, true);
+      userScroll = false;
+    }, 110);
+  }, {passive:true});
+  ['touchstart','pointerdown','wheel'].forEach(ev =>
+    rail.addEventListener(ev, () => { userScroll = true; }, {passive:true}));
+
   $('#rail-prev').onclick = () => focusPlate(curIdx - 1);
   $('#rail-next').onclick = () => focusPlate(curIdx + 1);
   $('#rail-go').onclick = () => {
@@ -1872,7 +2035,15 @@ function renderUpList(){
     ul.appendChild(li);
   };
   if(upFiles.tja) add(upFiles.tja, '譜面', 'tja');
-  if(upFiles.audio) add(upFiles.audio, '音源', '');
+  if(upFiles.audio){
+    add(upFiles.audio, '音源', '');
+    if(/\.ogg$/i.test(upFiles.audio.name)){
+      const li = document.createElement('li');
+      li.className = 'warn';
+      li.textContent = 'OGG は iPhone / iPad で再生できません。MP3 か M4A を推奨します。';
+      ul.appendChild(li);
+    }
+  }
   if(upFiles.tja && !upFiles.audio){
     const li = document.createElement('li');
     li.className = 'warn';
