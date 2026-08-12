@@ -1296,13 +1296,19 @@ function hit(isDon, evTime){
   playHitSound(isDon);       // 音が鳴らせなくても判定は必ず続行する
 
   const ns = G.course.notes;
-  let target = null, bd = 9;
+  /*
+   * 判定するのは「一番近い音符」ではなく「判定窓に入っている最も古い音符」。
+   * 近い方を選ぶと、少し遅れて叩いたときに次の音符を先に取ってしまい、
+   * 手前の音符が叩かれないまま不可になる。連符が一つも繋がらない原因がこれ。
+   */
+  let target = null, bd = 0;
   for(const n of ns){
     if(n.type >= 5 || n.done) continue;
     const d = t - n.time;
-    if(d < -JUDGE.BAD) break;
-    if(d > JUDGE.BAD) continue;
-    if(Math.abs(d) < bd){ bd = Math.abs(d); target = n; }
+    if(d < -JUDGE.BAD) break;          // ここから先はまだ早すぎる
+    if(d > JUDGE.BAD) continue;        // すでに窓を過ぎた
+    target = n; bd = Math.abs(d);
+    break;
   }
 
   if(target){
@@ -1353,7 +1359,8 @@ function update(t){
         const isDon = n.type === T.DON || n.type === T.DONB;
         hit(isDon, 0); continue;
       }
-      if(t > n.time + JUDGE.BAD) miss(n);
+      // 入力が数十ミリ秒遅れて届くことがあるため、少し待ってから不可にする
+      if(t > n.time + JUDGE.BAD + .045) miss(n);
     }else{
       if(CFG.auto && t >= n.time && t <= n.end){
         if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
