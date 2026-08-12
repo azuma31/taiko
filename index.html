@@ -1337,19 +1337,41 @@ function hit(isDon, evTime){
    * 近い方を選ぶと、少し遅れて叩いたときに次の音符を先に取ってしまい、
    * 手前の音符が叩かれないまま不可になる。連符が一つも繋がらない原因がこれ。
    */
+  /*
+   * 色違いの入力は音符を「消費しない」（本家仕様）。
+   * 以前は色違いで手前の音符を不可にして入力も消していたため、
+   * 連符で一度ずれると以降ぜんぶ不可が連鎖していた。
+   * 窓内で色の合う最古の音符を探し、無ければ入力は不発にする。
+   */
   let target = null, bd = 0;
   for(const n of ns){
     if(n.type >= 5 || n.done) continue;
     const d = t - n.time;
-    if(d < -JUDGE.BAD) break;          // ここから先はまだ早すぎる
+    /*
+     * 早い側は可の窓まで。不可の窓まで拾うと、2本指のほぼ同時押しの
+     * 2打目が「次の音符を早すぎ不可」として先食いし、本命の入力が
+     * 消えた音符を叩いて無反応になる連鎖が起きる（16分間隔94ms < 不可窓108ms）。
+     * 早すぎる入力は音符を消さず不発にする。遅い側は従来どおり不可まで拾う。
+     */
+    if(d < -JUDGE.OK) break;           // ここから先はまだ早すぎる（消さない）
     if(d > JUDGE.BAD) continue;        // すでに窓を過ぎた
+    const wantDon = n.type === T.DON || n.type === T.DONB;
+    if(wantDon !== isDon) continue;    // 色違いは飛ばす（消さない）
     target = n; bd = Math.abs(d);
     break;
   }
 
+  /*
+   * ほぼ同時に届いた2打目には音符を消費させない（連打の判定には影響しない）。
+   * 「判定ゆるめ」では可の窓(105ms)が16分間隔(94ms)を超えるため、
+   * 上の早すぎ判定だけでは同時押しの先食いを防ぎきれない。
+   * 30msは32分・240BPM(31ms)より短く、正規の連符は落とさない。
+   */
+  const pn = performance.now();
+  if(target && pn - (G.lastNoteHit || 0) < 30) target = null;
+
   if(target){
-    const wantDon = target.type === T.DON || target.type === T.DONB;
-    if(wantDon !== isDon){ miss(target); return; }
+    G.lastNoteHit = pn;
     target.done = true; target.hitAt = t;
     const isBig = target.type === T.DONB || target.type === T.KAB;
     const mul = isBig ? 2 : 1;
@@ -1395,8 +1417,13 @@ function update(t){
         const isDon = n.type === T.DON || n.type === T.DONB;
         hit(isDon, 0); continue;
       }
-      // 入力が数十ミリ秒遅れて届くことがあるため、少し待ってから不可にする
-      if(t > n.time + JUDGE.BAD + .045) miss(n);
+      /*
+       * hitTime() は最大150msの入力遅延を巻き戻して判定する。
+       * 不可にする猶予がそれより短いと、遅れて届いた入力が
+       * 「もう消えた音符」を叩くことになり無反応で抜け落ちる。
+       * 猶予は遅延許容(150ms)より必ず長くしておく。
+       */
+      if(t > n.time + JUDGE.BAD + .16) miss(n);
     }else{
       if(CFG.auto && t >= n.time && t <= n.end){
         if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
