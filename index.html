@@ -1252,7 +1252,7 @@ function startGame(idx){
   G.course = c;
   c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
   Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
-    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitT:null, running:true});
+    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitBy:{}, running:true});
   G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
   G.base = c.scoreInit || 300;
   G.diff = c.scoreDiff || 100;
@@ -1325,7 +1325,7 @@ function hitTime(evTime){
   return t - lag / 1000;
 }
 
-function hit(isDon, evTime){
+function hit(isDon, evTime, src){
   if(!G.running) return;
   const t = hitTime(evTime);
   G.drumHit[isDon ? 'l' : 'r'] = performance.now();
@@ -1380,10 +1380,11 @@ function hit(isDon, evTime){
    * 実際は1音符ぶん離れた2打目まで同時押し扱いでブロックしてしまう。
    * これが二本指のときだけ反応が消える主因だった。
    */
-  if(target && t - (G.lastHitT ?? -9) < .03) target = null;
+  /* ガードは同じボタンの連続入力にだけ効かせる。別のボタン同士は対象外 */
+  if(target && src != null && t - (G.lastHitBy[src] ?? -9) < .03) target = null;
 
   if(target){
-    G.lastHitT = t;
+    if(src != null) G.lastHitBy[src] = t;
     target.done = true; target.hitAt = t;
     const isBig = target.type === T.DONB || target.type === T.KAB;
     const mul = isBig ? 2 : 1;
@@ -1787,10 +1788,10 @@ const KEYS = {KeyF:'don', KeyJ:'don', KeyD:'ka', KeyK:'ka', Space:'don'};
 let touchMode = false;
 
 const padTimers = new WeakMap();
-function tap(isDon, el, evTime){
+function tap(isDon, el, evTime, src){
   if(!G.running) return;                       // 演奏中以外は鳴らさない
   if(AC.state === 'suspended') AC.resume();
-  hit(isDon, evTime);
+  hit(isDon, evTime, src);
   if(el){
     el.classList.add('on');
     clearTimeout(padTimers.get(el));           // 連打でタイマーを積み上げない
@@ -1812,7 +1813,7 @@ addEventListener('keydown', e => {
   if(!G.running) return;          // 演奏中以外はブラウザ側の動作を邪魔しない
   e.preventDefault();
   if(e.repeat) return;
-  tap(k === 'don', null, e.timeStamp);
+  tap(k === 'don', null, e.timeStamp, e.code);
 });
 
 /* 画面下のボタン。指ごとに touchstart が飛ぶので同時押しもそのまま拾える */
@@ -1828,9 +1829,9 @@ const padButtons = [...padsEl.querySelectorAll('button')];
 let padEdges = null, padW = -1, barBoxes = [];
 function measurePads(){
   padW = padsEl.clientWidth;
-  padEdges = padButtons.map(b => {
+  padEdges = padButtons.map((b, i) => {
     const r = b.getBoundingClientRect();
-    return {left:r.left, right:r.right, el:b, don: b.dataset.k === 'don'};
+    return {left:r.left, right:r.right, el:b, id:'pad' + i, don: b.dataset.k === 'don'};
   });
   /* 叩き判定から除くのは、中断・全画面のボタンそのものだけにする。
      帯全体を除いていた頃は、その上に指が落ちるとまるごと無反応だった。 */
@@ -1886,12 +1887,12 @@ function gameInput(clientX, clientY, evTime){
   /* 譜面より下（パッドの周りの余白もふくむ）は、すべて太鼓として拾う */
   if(clientY >= cvR.bottom - 2){
     const p = padAt(clientX);
-    if(p){ tap(p.don, p.el, evTime); return true; }
+    if(p){ tap(p.don, p.el, evTime, p.id); return true; }
     return false;
   }
   /* 譜面とその上。内側なら面、外側なら縁 */
   const x = (clientX - cvR.left) / cvR.width;
-  tap(x > .25 && x < .75, null, evTime);
+  tap(x > .25 && x < .75, null, evTime, 'cv' + (x < .25 ? 0 : x < .5 ? 1 : x < .75 ? 2 : 3));
   return true;
 }
 
