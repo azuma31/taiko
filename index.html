@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>和太鼓 TJA Player</title>
+<style>
+:root{
+  --sumi:#0a0e18;
+  --ban:#131a2b;        /* 盤面 */
+  --ban2:#1b2438;
+  --shu:#d93a2b;        /* 朱 */
+  --shu2:#f0614f;
+  --ai:#2f7cc4;         /* 藍 */
+  --kin:#e8b93c;        /* 金 */
+  --gofun:#f4efe4;      /* 胡粉 */
+  --wa:#e9dcc0;         /* 和紙 */
+  --mute:#7d8aa3;
+  --line:rgba(244,239,228,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(90% 55% at 50% 0%,rgba(217,58,43,.09) 0%,transparent 60%),
+    radial-gradient(120% 90% at 50% 110%,#101728 0%,var(--sumi) 55%);
+  background-attachment:fixed;
+  color:var(--gofun);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%;
+  -webkit-font-smoothing:antialiased;
+}
+#app{max-width:940px;margin:0 auto;padding:26px 18px 48px}
+
+/* ---- 見出し ---- */
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.brand .seal{
+  width:44px;height:44px;flex:none;border-radius:50%;
+  background:linear-gradient(160deg,var(--shu2),#a8281c);
+  display:grid;place-items:center;font-weight:800;font-size:19px;color:#fff;
+  box-shadow:0 3px 14px rgba(217,58,43,.4),inset 0 1px 0 rgba(255,255,255,.25);
+}
+.brand h1{font-size:20px;letter-spacing:.42em;font-weight:800;line-height:1}
+.brand small{display:block;color:var(--mute);letter-spacing:.3em;font-size:9.5px;margin-top:6px}
+
+.screen{display:none}
+.screen.on{display:block;animation:fade .32s cubic-bezier(.2,.7,.3,1)}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- 共通パーツ ---- */
+.btn{
+  display:inline-block;padding:12px 30px;border:0;border-radius:2px;
+  background:linear-gradient(180deg,var(--shu2),#b62e21);color:#fff;
+  font:inherit;font-weight:800;letter-spacing:.16em;font-size:13px;cursor:pointer;
+  box-shadow:0 2px 0 #7d1d14,0 6px 18px rgba(217,58,43,.3);
+  transition:transform .1s,box-shadow .1s,filter .1s;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(2px);box-shadow:0 0 0 #7d1d14,0 3px 10px rgba(217,58,43,.25)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.btn.ghost{
+  background:transparent;border:1px solid rgba(244,239,228,.22);color:var(--gofun);
+  box-shadow:none;font-weight:700;
+}
+.btn.ghost:hover{background:rgba(244,239,228,.07)}
+.btn:focus-visible{outline:2px solid var(--kin);outline-offset:3px}
+.mini{
+  border:1px solid rgba(244,239,228,.2);background:transparent;color:var(--mute);
+  font:inherit;font-size:11px;padding:6px 14px;border-radius:2px;cursor:pointer;letter-spacing:.14em;
+  transition:.15s;
+}
+.mini:hover{color:var(--gofun);border-color:rgba(244,239,228,.4)}
+.note{color:var(--mute);font-size:11.5px;line-height:2;margin-top:16px}
+
+/* ================= 曲かんばん（選曲） ================= */
+.stage{
+  position:relative;margin:0 -18px 0;padding:0 0 26px;
+  background:
+    radial-gradient(120% 90% at 50% 0%,rgba(232,185,60,.10) 0%,transparent 55%),
+    linear-gradient(180deg,#20182a 0%,#161b2c 40%,#0c1018 100%);
+  border-bottom:2px solid rgba(232,185,60,.3);
+  overflow:hidden;
+}
+/* 紅白幕 */
+.maku{
+  height:26px;
+  background:repeating-linear-gradient(90deg,#d93a2b 0 28px,#f4efe4 28px 56px);
+  box-shadow:0 3px 10px rgba(0,0,0,.5);
+  position:relative;
+}
+.maku::after{
+  content:"";position:absolute;left:0;right:0;top:26px;height:11px;
+  background:radial-gradient(11px 11px at 14px 0,rgba(0,0,0,.28) 0 49%,transparent 50%) repeat-x;
+  background-size:28px 11px;
+}
+.stagein{position:relative;padding-top:30px}
+.stagein::before,.stagein::after{
+  content:"";position:absolute;top:0;bottom:0;width:70px;z-index:3;pointer-events:none;
+}
+.stagein::before{left:0;background:linear-gradient(90deg,#0c1018 10%,transparent)}
+.stagein::after{right:0;background:linear-gradient(270deg,#0c1018 10%,transparent)}
+
+.rail{
+  display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding:16px 50% 20px;scrollbar-width:none;-ms-overflow-style:none;align-items:center;
+}
+.rail::-webkit-scrollbar{display:none}
+
+/* 一枚の曲かんばん */
+.plate{
+  position:relative;flex:none;scroll-snap-align:center;
+  width:100px;height:212px;border:0;padding:0;cursor:pointer;
+  border-radius:8px;background:var(--pc,#c33);
+  box-shadow:0 4px 0 rgba(0,0,0,.5),0 10px 24px rgba(0,0,0,.5),
+             inset 0 0 0 3px rgba(255,255,255,.92),inset 0 0 0 6px rgba(0,0,0,.2);
+  transition:transform .26s cubic-bezier(.2,.85,.3,1),filter .26s,box-shadow .26s;
+  filter:saturate(.55) brightness(.62);transform:scale(.82) translateY(6px);
+  display:flex;flex-direction:column;align-items:center;overflow:hidden;
+}
+.plate::before{           /* 上部の紐通し */
+  content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  width:26px;height:5px;border-radius:3px;background:rgba(0,0,0,.28);
+}
+.plate::after{            /* 艶 */
+  content:"";position:absolute;inset:6px;border-radius:5px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,0) 40%,rgba(0,0,0,.26));
+}
+.plate .pt{
+  writing-mode:vertical-rl;text-orientation:upright;white-space:nowrap;
+  font-size:16px;font-weight:800;color:#fff;letter-spacing:.1em;line-height:1.2;
+  height:158px;margin-top:22px;overflow:hidden;text-shadow:0 2px 5px rgba(0,0,0,.6);
+}
+.plate .pstar{
+  position:absolute;bottom:9px;left:0;right:0;text-align:center;
+  font-size:9.5px;font-weight:800;color:#ffe066;letter-spacing:.04em;
+  text-shadow:0 1px 3px rgba(0,0,0,.7);
+}
+.plate .nosnd{
+  position:absolute;bottom:24px;left:0;right:0;text-align:center;
+  font-size:8.5px;letter-spacing:.08em;color:rgba(255,255,255,.8);
+}
+.plate.on{
+  z-index:2;filter:none;transform:scale(1.2) translateY(-4px);
+  box-shadow:0 6px 0 rgba(0,0,0,.55),0 18px 40px rgba(0,0,0,.65),
+             inset 0 0 0 3px #fff,inset 0 0 0 7px rgba(0,0,0,.22),
+             0 0 44px rgba(232,185,60,.45);
+}
+.plate.busy{animation:bob .7s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:scale(1.2) translateY(-4px)}50%{transform:scale(1.2) translateY(-11px)}}
+
+/* 中央の木札 */
+.nowplate{
+  position:relative;margin:-8px 18px 0;padding:18px 22px 20px;border-radius:5px;text-align:center;
+  background:linear-gradient(180deg,#f5ead3,#dbc9a3);color:#2a1f12;
+  box-shadow:0 4px 0 rgba(0,0,0,.4),0 10px 26px rgba(0,0,0,.4),
+             inset 0 1px 0 rgba(255,255,255,.8);
+  z-index:4;
+}
+.nowplate::before,.nowplate::after{
+  content:"";position:absolute;top:12px;bottom:12px;width:3px;background:rgba(120,90,50,.28);
+}
+.nowplate::before{left:9px}.nowplate::after{right:9px}
+.nowplate b{display:block;font-size:19px;font-weight:800;letter-spacing:.04em;line-height:1.35;
+  white-space:nowrap;overflow:hidden}
+.nowplate .who{display:block;margin-top:7px;font-size:10.5px;letter-spacing:.14em;color:#8a7150;
+  white-space:nowrap;overflow:hidden}
+.chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:13px}
+.chip{
+  display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;
+  background:var(--cc);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+  box-shadow:0 2px 0 rgba(0,0,0,.3);
+}
+.chip em{font-style:normal;color:#ffe89a;font-size:10px}
+
+/* 送りボタン */
+.railnav{display:flex;justify-content:center;align-items:center;gap:16px;margin-top:20px}
+.railnav .arw{
+  width:46px;height:46px;border:0;border-radius:50%;cursor:pointer;flex:none;
+  background:linear-gradient(180deg,#2c3550,#1a2134);color:var(--gofun);
+  font-size:15px;font-weight:800;box-shadow:0 3px 0 rgba(0,0,0,.5);transition:.14s;
+}
+.railnav .arw:hover{background:linear-gradient(180deg,#3d4a70,#232c45)}
+.railnav .arw:active{transform:translateY(3px);box-shadow:none}
+.railnav .go{
+  width:96px;height:96px;border:0;border-radius:50%;cursor:pointer;flex:none;
+  background:radial-gradient(circle at 50% 34%,#f0614f,#c2352c 62%,#8e2318);
+  color:#fff;font-size:15px;font-weight:800;letter-spacing:.16em;
+  box-shadow:0 5px 0 #6f1a12,0 12px 30px rgba(217,58,43,.45),
+             inset 0 0 0 6px rgba(255,255,255,.9),inset 0 0 0 10px rgba(0,0,0,.18);
+  transition:.14s;
+}
+.railnav .go:hover{filter:brightness(1.09)}
+.railnav .go:active{transform:translateY(4px);box-shadow:0 1px 0 #6f1a12,inset 0 0 0 6px #fff}
+.counter{
+  text-align:center;margin-top:14px;color:var(--mute);font-size:10.5px;letter-spacing:.24em;
+}
+.counter b{color:var(--kin);font-size:13px}
+.hint{text-align:center;margin-top:8px;color:rgba(125,138,163,.7);font-size:10px;letter-spacing:.14em}
+
+/* ================= 難易度えらび ================= */
+.dlabel{
+  text-align:center;font-size:11.5px;letter-spacing:.34em;color:var(--mute);
+  margin:0 0 18px;padding-left:.34em;
+}
+.diffwrap{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.diff{
+  position:relative;flex:none;width:118px;padding:0 0 16px;border:0;cursor:pointer;
+  border-radius:6px;background:var(--dc);color:#fff;overflow:hidden;
+  box-shadow:0 4px 0 rgba(0,0,0,.42),0 10px 24px rgba(0,0,0,.4),
+             inset 0 0 0 3px rgba(255,255,255,.92);
+  transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .18s;
+}
+.diff:hover,.diff:focus-visible{transform:translateY(-6px) scale(1.04);outline:none;
+  box-shadow:0 8px 0 rgba(0,0,0,.42),0 16px 34px rgba(0,0,0,.5),
+             inset 0 0 0 3px #fff,0 0 30px rgba(232,185,60,.35)}
+.diff:active{transform:translateY(0) scale(1)}
+.diff .dh{
+  padding:13px 4px 11px;font-size:16px;font-weight:800;letter-spacing:.14em;
+  background:rgba(0,0,0,.24);text-shadow:0 2px 3px rgba(0,0,0,.5);
+  white-space:nowrap;overflow:hidden;
+}
+.diff .stars{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:2px;
+  padding:13px 12px 10px;min-height:56px;align-content:center;
+}
+.diff .stars i{font-style:normal;font-size:12px;line-height:1;color:#ffe066;
+  text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.diff .stars i.off{color:rgba(255,255,255,.24);text-shadow:none}
+.diff .lvnum{font-size:23px;font-weight:800;letter-spacing:.02em;line-height:1;
+  text-shadow:0 2px 4px rgba(0,0,0,.5)}
+.diff .dn{font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.85);margin-top:9px}
+
+/* ---- ライブラリ ---- */
+.libbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;gap:12px}
+.libtitle{font-size:15px;letter-spacing:.3em;font-weight:800}
+.libtitle::before{content:"";display:inline-block;width:3px;height:15px;background:var(--shu);
+  margin-right:12px;vertical-align:-2px}
+.libtools{display:flex;align-items:center;gap:12px;color:var(--mute);font-size:11px;letter-spacing:.14em}
+.courses{display:grid;gap:8px}
+.course{
+  position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:17px 20px;border:1px solid var(--line);border-radius:2px;
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+  cursor:pointer;font:inherit;color:inherit;text-align:left;overflow:hidden;
+  transition:background .16s,border-color .16s,transform .16s;
+}
+.course::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--shu);
+  transform:scaleY(0);transform-origin:center;transition:transform .2s;
+}
+.course:hover{background:rgba(217,58,43,.10);border-color:rgba(217,58,43,.45);transform:translateX(3px)}
+.course:hover::before{transform:scaleY(1)}
+.course:active{transform:translateX(3px) scale(.995)}
+.course .nm{display:block;font-weight:700;letter-spacing:.06em;font-size:15px}
+.course .cnt{display:block;color:var(--mute);font-size:11px;margin-top:5px;letter-spacing:.06em}
+.course .lv{color:var(--kin);font-size:12px;letter-spacing:.16em;flex:none;font-weight:700}
+.course.busy{opacity:.45;pointer-events:none}
+.empty{padding:38px 20px;text-align:center;color:var(--mute);font-size:12.5px;line-height:2.2;
+  border:1px dashed rgba(244,239,228,.16);border-radius:2px}
+
+/* ---- 投稿フォーム ---- */
+.upbox{margin-top:26px;border:1px solid var(--line);border-radius:2px;background:rgba(255,255,255,.02)}
+.upbox summary{
+  padding:15px 20px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.18em;
+  color:var(--mute);list-style:none;transition:.15s;
+}
+.upbox summary::-webkit-details-marker{display:none}
+.upbox summary:hover{color:var(--gofun)}
+.upbox[open] summary{color:var(--gofun);border-bottom:1px solid var(--line)}
+.upform{padding:20px;display:grid;gap:15px}
+.upform label{display:block;font-size:10.5px;letter-spacing:.18em;color:var(--mute)}
+.upform input{
+  display:block;width:100%;margin-top:8px;padding:11px 13px;border-radius:2px;
+  border:1px solid rgba(244,239,228,.16);background:rgba(0,0,0,.3);color:var(--gofun);
+  font:inherit;font-size:13px;transition:border-color .15s;
+}
+.upform input:focus{outline:none;border-color:var(--shu)}
+.upform input[type=file]{padding:9px;font-size:12px}
+.upform .btn{justify-self:start;margin-top:4px}
+
+#up-drop{
+  margin-top:8px;padding:26px 18px;text-align:center;border-radius:2px;
+  border:1px dashed rgba(244,239,228,.24);background:rgba(0,0,0,.22);transition:.16s;
+}
+#up-drop.hot{border-color:var(--kin);background:rgba(232,185,60,.09)}
+#up-drop b{display:block;font-size:13px;letter-spacing:.14em;margin-bottom:7px}
+#up-drop span{display:block;color:var(--mute);font-size:11px;line-height:1.9;margin-bottom:14px}
+#up-list{list-style:none;margin-top:12px;display:grid;gap:5px}
+#up-list li{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 13px;border-radius:2px;background:rgba(255,255,255,.04);
+  border-left:2px solid var(--ai);font-size:12px;min-width:0;
+}
+#up-list li > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#up-list li.tja{border-left-color:var(--shu)}
+#up-list li.warn{border-left-color:var(--kin);color:var(--kin)}
+#up-list .tag{color:var(--mute);font-size:10px;letter-spacing:.14em;flex:none}
+
+/* ---- 読み込みオーバーレイ ---- */
+#load{
+  position:fixed;inset:0;z-index:900;display:none;
+  align-items:center;justify-content:center;flex-direction:column;
+  background:rgba(7,10,18,.93);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  padding:24px;text-align:center;
+}
+#load.on{display:flex;animation:fade .22s ease}
+.spin{position:relative;width:112px;height:112px;margin-bottom:34px}
+.spin::before,.spin::after{content:"";position:absolute;border-radius:50%}
+.spin::before{
+  inset:0;border:3px solid rgba(244,239,228,.10);
+  border-top-color:var(--shu);border-right-color:var(--shu);
+  animation:sp 1s linear infinite;
+}
+.spin::after{
+  inset:19px;border:3px solid rgba(244,239,228,.07);
+  border-bottom-color:var(--kin);animation:sp 1.5s linear infinite reverse;
+}
+@keyframes sp{to{transform:rotate(360deg)}}
+.spin .bachi{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-size:31px;font-weight:800;color:var(--gofun);
+  animation:beat 1s cubic-bezier(.3,0,.2,1) infinite;
+}
+@keyframes beat{0%,100%{transform:scale(1)}12%{transform:scale(1.19)}30%{transform:scale(1)}}
+#load-title{font-size:19px;font-weight:800;letter-spacing:.2em;margin-bottom:12px}
+#load-sub{color:var(--mute);font-size:12.5px;letter-spacing:.1em;line-height:1.9;
+  white-space:pre-line;
+  max-width:400px;min-height:2.6em}
+#load-bar{
+  width:min(340px,78vw);height:5px;margin-top:26px;border-radius:99px;
+  background:rgba(244,239,228,.1);overflow:hidden;display:none;
+}
+#load-bar.on{display:block}
+#load-fill{
+  height:100%;width:0%;border-radius:99px;
+  background:linear-gradient(90deg,var(--shu),var(--kin));
+  transition:width .18s ease;
+}
+#load-bar.wait #load-fill{
+  width:36%;animation:slide 1.15s ease-in-out infinite;
+}
+@keyframes slide{0%{margin-left:-36%}100%{margin-left:100%}}
+#load-pct{margin-top:11px;font-size:11px;letter-spacing:.2em;color:var(--mute);min-height:1.2em}
+
+/* ---- 選曲 ---- */
+.songhead{margin-bottom:24px;padding-left:16px;border-left:3px solid var(--shu)}
+.songhead h2{font-size:21px;letter-spacing:.04em;line-height:1.4;white-space:nowrap;overflow:hidden}
+.songhead p{color:var(--mute);font-size:11.5px;margin-top:7px;letter-spacing:.09em;
+  white-space:nowrap;overflow:hidden}
+#courses{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}
+.opts{
+  margin-top:28px;padding-top:24px;border-top:1px solid var(--line);
+  display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+}
+.opt label{display:block;font-size:10.5px;letter-spacing:.18em;color:var(--mute);margin-bottom:9px}
+.opt .val{float:right;color:var(--gofun);letter-spacing:.05em}
+.opt input[type=range]{width:100%;accent-color:var(--shu);height:3px}
+.chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gofun);
+  letter-spacing:.08em;cursor:pointer}
+.chk input{accent-color:var(--shu);width:15px;height:15px}
+
+/* ---- ゲーム ---- */
+#cv{width:100%;display:block;border-radius:2px;background:#070a12;touch-action:none;
+  box-shadow:0 10px 40px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent}
+#pads{display:none;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;touch-action:none}
+body.touch #pads{display:grid}
+#pads button{
+  padding:30px 0;border:0;border-radius:3px;font:inherit;font-size:14px;font-weight:800;color:#fff;
+  letter-spacing:.16em;touch-action:none;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;transition:filter .07s,transform .07s;
+}
+#pads button.on{filter:brightness(1.5);transform:scale(.97)}
+#pads .ka{background:linear-gradient(180deg,#3f8ecd,#245f95);box-shadow:inset 0 -4px 0 rgba(0,0,0,.32)}
+#pads .don{background:linear-gradient(180deg,#e0483a,#a52a1f);box-shadow:inset 0 -4px 0 rgba(0,0,0,.32)}
+.gamebar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;
+  color:var(--mute);font-size:11px;letter-spacing:.12em}
+body.playing{overflow:hidden;overscroll-behavior:none}
+#s-game:fullscreen{background:var(--sumi);display:flex;flex-direction:column;
+  justify-content:center;height:100%;padding:0 10px}
+#s-game:fullscreen #cv{max-height:54vh}
+#s-game:fullscreen #pads button{padding:34px 0}
+
+/* ---- 結果 ---- */
+.result{max-width:500px;margin:0 auto}
+.rank{
+  text-align:center;font-size:30px;font-weight:800;letter-spacing:.4em;
+  margin:20px 0 26px;padding-left:.4em;
+}
+.rank.clear{color:var(--kin);text-shadow:0 0 32px rgba(232,185,60,.45)}
+.rank.fail{color:var(--mute)}
+.rows{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.rows div{display:flex;justify-content:space-between;align-items:center;
+  padding:13px 18px;background:#0e1423;font-size:15px;font-weight:700}
+.rows div span:first-child{color:var(--mute);letter-spacing:.18em;font-size:11px;font-weight:400}
+.rows .g span:last-child{color:var(--kin)}
+.rows .b span:last-child{color:var(--ai)}
+.rbtns{display:flex;gap:10px;justify-content:center;margin-top:26px}
+
+@media(max-width:720px){
+  #app{padding:16px 12px 32px}
+  .stage{margin:0 -12px 0;padding:0 0 20px}
+  .maku{height:20px}
+  .stagein{padding-top:22px}
+  .rail{padding:12px 50% 16px}
+  .plate{width:86px;height:184px}
+  .plate .pt{height:134px;margin-top:20px}
+  .nowplate{margin:-8px 4px 0;padding:15px 16px 17px}
+  .nowplate b{font-size:17px}
+  .railnav .go{width:84px;height:84px;font-size:14px}
+  .railnav .arw{width:42px;height:42px}
+  .diff{width:104px}
+  .diff .dh{font-size:14px}
+  .brand h1{font-size:16px;letter-spacing:.3em}
+  .brand .seal{width:38px;height:38px;font-size:16px}
+  #courses{grid-template-columns:1fr}
+  .course{padding:18px 16px}
+  .rank{font-size:24px}
+}
+</style>
+</head>
+<body>
+<div id="load">
+  <div class="spin"><div class="bachi">鼓</div></div>
+  <div id="load-title">読み込み中</div>
+  <div id="load-sub"></div>
+  <div id="load-bar"><div id="load-fill"></div></div>
+  <div id="load-pct"></div>
+</div>
+
+<div id="app">
+  <div class="brand">
+    <div class="seal">鼓</div>
+    <div><h1>太鼓の道場</h1><small>TJA PLAYER</small></div>
+  </div>
+
+  <!-- 読み込み -->
+  <section id="s-load" class="screen on">
+    <div class="libbar">
+      <h2 class="libtitle">曲を えらぶ</h2>
+      <div class="libtools">
+        <span id="lib-status">読み込み中…</span>
+        <button class="mini" id="lib-reload">更新</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="maku"></div>
+      <div class="stagein">
+        <div class="rail" id="lib"></div>
+      </div>
+    </div>
+    <div class="nowplate" id="nowplate" style="display:none">
+      <b id="np-title"></b>
+      <span class="who" id="np-sub"></span>
+      <div class="chips" id="np-chips"></div>
+    </div>
+    <div id="railnav" style="display:none">
+      <div class="railnav">
+        <button class="arw" id="rail-prev" aria-label="前の曲">◀</button>
+        <button class="go" id="rail-go">えらぶ</button>
+        <button class="arw" id="rail-next" aria-label="次の曲">▶</button>
+      </div>
+      <p class="counter" id="np-count"></p>
+      <p class="hint">← → で曲おくり ・ Enter でえらぶ</p>
+    </div>
+
+    <details class="upbox">
+      <summary>＋ 曲を追加する</summary>
+      <div class="upform">
+        <div>
+          <label>TJAファイルと音源（まとめて選べます）</label>
+          <div id="up-drop">
+            <b>ここにドロップ</b>
+            <span>.tja と .ogg / .mp3 / .wav をまとめて選択・ドロップ</span>
+            <button type="button" class="mini" id="up-pick">ファイルを選ぶ</button>
+            <input type="file" id="up-files" multiple hidden>
+          </div>
+          <ul id="up-list"></ul>
+        </div>
+        <label>曲名（任意）<input type="text" id="up-title" maxlength="40" placeholder="空ならTJAのTITLEを使います"></label>
+        <label>投稿者名<input type="text" id="up-who" maxlength="20" placeholder="なまえ"></label>
+        <label>合言葉<input type="password" id="up-pass" placeholder="部内で決めた合言葉"></label>
+        <button class="btn" id="up-go">アップロード</button>
+        <p class="note" id="up-msg"></p>
+        <p class="note">
+          TJAと音源は一度にまとめて選べます。種類は自動で振り分けられます。<br>
+          曲名は空ならTJAのTITLEがそのまま使われます。<br>
+          アップロードした曲は、このページを開いた人なら誰でも演奏できます。<br>
+          自作譜面と、配布が許可されている音源だけにしてください。
+        </p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 選曲 -->
+  <section id="s-select" class="screen">
+    <div class="songhead"><h2 id="title">-</h2><p id="subtitle"></p></div>
+    <p class="dlabel">むずかしさを えらぶ</p>
+    <div class="diffwrap" id="courses"></div>
+    <div class="opts">
+      <div class="opt"><label>譜面速度 <span class="val" id="v-speed">1.6</span></label>
+        <input type="range" id="speed" min="0.6" max="4" step="0.1" value="1.6"></div>
+      <div class="opt"><label>判定オフセット <span class="val" id="v-off">0 ms</span></label>
+        <input type="range" id="off" min="-200" max="200" step="5" value="0"></div>
+      <div class="opt"><label>音楽音量 <span class="val" id="v-bgm">70</span></label>
+        <input type="range" id="bgm" min="0" max="100" value="70"></div>
+      <div class="opt"><label>太鼓の音 <span class="val" id="v-se">60</span></label>
+        <input type="range" id="se" min="0" max="100" value="60"></div>
+      <div class="opt">
+        <label class="chk" style="margin-bottom:9px"><input type="checkbox" id="auto"> オート演奏</label>
+        <label class="chk"><input type="checkbox" id="loose"> 判定をゆるめる（1.4倍）</label>
+      </div>
+    </div>
+    <p class="note">
+      PC: <b>F / J</b> = 面（ドン）, <b>D / K</b> = 縁（カッ）, <b>Esc</b> = 中断。<br>
+      スマホ・タブレット: 画面下の4つのボタン（両端が縁＝カッ、内側2つが面＝ドン）。譜面の内側/外側を直接タップしても叩けます。横向き＋全画面が遊びやすいです。
+    </p>
+    <p class="note" id="cfg-note">設定はこの端末に保存され、次回もそのまま使えます。</p>
+    <div class="rbtns" style="justify-content:flex-start;margin-top:18px">
+      <button class="btn ghost" id="back-load">別の曲をえらぶ</button>
+      <button class="mini" id="reset-cfg">設定を初期値に戻す</button>
+    </div>
+  </section>
+
+  <!-- ゲーム -->
+  <section id="s-game" class="screen">
+    <canvas id="cv" width="2560" height="600"></canvas>
+    <div id="pads">
+      <button class="ka" data-k="ka">カッ</button>
+      <button class="don" data-k="don">ドン</button>
+      <button class="don" data-k="don">ドン</button>
+      <button class="ka" data-k="ka">カッ</button>
+    </div>
+    <div class="gamebar">
+      <span id="g-title"></span>
+      <span style="display:flex;gap:8px;align-items:center;flex:none">
+        <button class="mini" id="fs">全画面</button>
+        <button class="mini" id="stop">中断</button>
+      </span>
+    </div>
+  </section>
+
+  <!-- 結果 -->
+  <section id="s-result" class="screen">
+    <div class="result">
+      <div class="songhead" style="text-align:left"><h2 id="r-title"></h2><p id="r-course"></p></div>
+      <div class="rank" id="rank"></div>
+      <div class="rows">
+        <div><span>スコア</span><span id="r-score"></span></div>
+        <div class="g"><span>良</span><span id="r-good"></span></div>
+        <div class="o"><span>可</span><span id="r-ok"></span></div>
+        <div class="b"><span>不可</span><span id="r-bad"></span></div>
+        <div><span>最大コンボ</span><span id="r-combo"></span></div>
+        <div><span>連打</span><span id="r-roll"></span></div>
+      </div>
+      <div class="rbtns">
+        <button class="btn" id="retry">もう一度</button>
+        <button class="btn ghost" id="tosel">難易度をえらぶ</button>
+        <button class="btn ghost" id="tolib">曲をえらぶ</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   0. 基本ユーティリティ
+========================================================= */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const show = id => document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on', e.id===id));
+
+/* =========================================================
+   1. TJA パーサ
+========================================================= */
+const T = {DON:1, KA:2, DONB:3, KAB:4, ROLL:5, ROLLB:6, BALLOON:7, END:8, KUSU:9};
+
+function decodeText(buf){
+  const u8 = new Uint8Array(buf);
+  let t = new TextDecoder('utf-8').decode(u8);
+  if(t.indexOf('\uFFFD') >= 0){                    // Shift_JIS の TJA が多い
+    try{ t = new TextDecoder('shift-jis').decode(u8); }catch(e){}
+  }
+  return t.replace(/^\uFEFF/, '');
+}
+
+function parseTJA(text){
+  const lines = text.split(/\r\n|\r|\n/);
+  const H = {};            // 累積ヘッダ
+  const courses = [];
+  let inChart = false, chart = [];
+
+  for(const raw of lines){
+    const line = raw.split('//')[0].trim();
+    if(!line) continue;
+
+    if(line[0] === '#'){
+      const cmd = line.slice(1).split(/[\s:]/)[0].toUpperCase();
+      if(cmd === 'START'){ inChart = true; chart = []; continue; }
+      if(cmd === 'END'){
+        inChart = false;
+        courses.push(buildCourse(Object.assign({}, H), chart));
+        delete H.BALLOON; delete H.LEVEL; delete H.SCOREINIT; delete H.SCOREDIFF;
+        continue;
+      }
+      if(inChart) chart.push(line);
+      continue;
+    }
+
+    const m = line.match(/^([A-Za-z0-9]+)\s*:\s*(.*)$/);
+    if(m && !inChart){ H[m[1].toUpperCase()] = m[2].trim(); continue; }
+    if(inChart) chart.push(line);
+  }
+  return {headers:H, courses};
+}
+
+/* 譜面分岐は事前に一本化する（既定は達人譜面） */
+function resolveBranch(lines, pref){
+  const out = []; let i = 0;
+  while(i < lines.length){
+    if(/^#BRANCHSTART/i.test(lines[i])){
+      const br = {}; let cur = null; i++;
+      while(i < lines.length && !/^#BRANCHEND/i.test(lines[i])){
+        const m = lines[i].match(/^#([NEM])\s*$/i);
+        if(m){ cur = m[1].toUpperCase(); br[cur] = []; }
+        else if(cur) br[cur].push(lines[i]);
+        i++;
+      }
+      i++;
+      out.push(...(br[pref] || br.M || br.E || br.N || []));
+      continue;
+    }
+    if(/^#(SECTION|LEVELHOLD|BRANCHEND|NEXTSONG)/i.test(lines[i])){ i++; continue; }
+    out.push(lines[i]); i++;
+  }
+  return out;
+}
+
+function buildCourse(H, rawLines){
+  const lines   = resolveBranch(rawLines, 'M');
+  const offset  = parseFloat(H.OFFSET || 0) || 0;
+  const balloons= (H.BALLOON || '').split(',').map(parseFloat).filter(n=>!isNaN(n));
+
+  let bpm = parseFloat(H.BPM || 120) || 120;
+  let scroll = 1, mNum = 4, mDen = 4, gogo = false, barline = true;
+  let time = -offset;                 // 音源基準の秒
+  let bIdx = 0, roll = null;
+
+  const notes = [], bars = [], gogos = [];
+  let buf = [], evts = [];
+
+  const applyEvents = idx => {
+    for(const e of evts){
+      if(e.i !== idx || e.done) continue;
+      e.done = true;
+      const p = e.line.slice(1).replace(':', ' ').split(/\s+/);
+      const c = p[0].toUpperCase(), v = p.slice(1).join(' ');
+      if(c === 'BPMCHANGE') bpm = parseFloat(v) || bpm;
+      else if(c === 'SCROLL') scroll = parseFloat(v) || 1;
+      else if(c === 'MEASURE'){ const s = v.split('/'); mNum = parseFloat(s[0])||4; mDen = parseFloat(s[1])||4; }
+      else if(c === 'DELAY') time += parseFloat(v) || 0;
+      else if(c === 'GOGOSTART'){ gogo = true; gogos.push({s:time, e:1e9}); }
+      else if(c === 'GOGOEND'){ gogo = false; if(gogos.length) gogos[gogos.length-1].e = time; }
+      else if(c === 'BARLINEOFF') barline = false;
+      else if(c === 'BARLINEON') barline = true;
+    }
+  };
+
+  const addNote = ch => {
+    let t = parseInt(ch, 10);
+    if(ch === 'A' || ch === 'a') t = 3;
+    if(ch === 'B' || ch === 'b') t = 4;
+    if(!t) return;
+    if(t <= 4){
+      notes.push({type:t, time, bpm, scroll, gogo, done:false});
+    }else if(t === 8){
+      if(roll){ roll.end = time; roll = null; }
+    }else if(t <= 9){
+      roll = {type:t, time, end:time, bpm, scroll, gogo, done:false, count:0,
+              max:(t===T.BALLOON||t===T.KUSU) ? (balloons[bIdx++] || 5) : 0};
+      notes.push(roll);
+    }
+  };
+
+  const flush = () => {
+    const len = buf.length, slots = Math.max(len, 1);
+    for(let i = 0; i < slots; i++){
+      applyEvents(i);
+      if(i === 0 && barline) bars.push({time, bpm, scroll});
+      if(i < len) addNote(buf[i]);
+      time += (60 / bpm) * 4 * (mNum / mDen) / slots;
+    }
+    for(const e of evts) if(!e.done){ e.i = 0; }        // 末尾コマンド
+    applyEvents(0);
+    buf = []; evts = [];
+  };
+
+  for(const line of lines){
+    if(line[0] === '#'){ evts.push({i:buf.length, line}); continue; }
+    for(const ch of line){
+      if(ch === ',') flush();
+      else if(/[0-9A-Ba-b]/.test(ch)) buf.push(ch);
+    }
+  }
+  if(buf.length || evts.length) flush();
+
+  const hitCount = notes.filter(n => n.type <= 4).length;
+  return {
+    name: H.COURSE || 'Oni', level: parseInt(H.LEVEL || 0, 10) || 0,
+    notes, bars, gogos, hitCount,
+    scoreInit: parseInt(H.SCOREINIT || 0, 10) || 0,
+    scoreDiff: parseInt(H.SCOREDIFF || 0, 10) || 0,
+    bpm: parseFloat(H.BPM || 120) || 120
+  };
+}
+
+const COURSE_JA = {'0':'かんたん','1':'ふつう','2':'むずかしい','3':'おに','4':'おに(裏)',
+  EASY:'かんたん', NORMAL:'ふつう', HARD:'むずかしい', ONI:'おに', EDIT:'おに(裏)', URA:'おに(裏)'};
+const courseLabel = c => COURSE_JA[String(c.name).toUpperCase()] || c.name;
+
+/* =========================================================
+   2. 音まわり
+========================================================= */
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+const bgmGain = AC.createGain(), seGain = AC.createGain();
+bgmGain.connect(AC.destination); seGain.connect(AC.destination);
+bgmGain.gain.value = .7; seGain.gain.value = .6;
+
+/* --- ノイズ源。長さの違う2種を用意して打点ごとに位置をずらす --- */
+function mkNoise(sec){
+  const b = AC.createBuffer(1, Math.floor(AC.sampleRate * sec), AC.sampleRate), d = b.getChannelData(0);
+  for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+const noiseBuf = mkNoise(1.2);
+
+/* --- 部屋鳴り。太鼓は必ず空間の中で鳴るので短い残響を足す --- */
+const revIR = (() => {
+  const len = Math.floor(AC.sampleRate * .9);
+  const b = AC.createBuffer(2, len, AC.sampleRate);
+  for(let ch = 0; ch < 2; ch++){
+    const d = b.getChannelData(ch);
+    for(let i = 0; i < len; i++){
+      const t = i / len;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3.2) * (1 - t * .3);
+    }
+  }
+  return b;
+})();
+const revGain = AC.createGain(); revGain.gain.value = .16;
+const conv = AC.createConvolver(); conv.buffer = revIR;
+revGain.connect(conv); conv.connect(seGain);
+
+/* --- 全体を少し締める --- */
+const seComp = AC.createDynamicsCompressor();
+seComp.threshold.value = -14; seComp.knee.value = 22;
+seComp.ratio.value = 4; seComp.attack.value = .002; seComp.release.value = .16;
+seComp.connect(seGain);
+
+/* 部品：フィルタを通したノイズの一撃 */
+function noiseHit(out, t, {type, f0, f1, q, gain, dur}){
+  const s = AC.createBufferSource();
+  s.buffer = noiseBuf;
+  s.playbackRate.value = .9 + Math.random() * .2;
+  const bq = AC.createBiquadFilter();
+  bq.type = type; bq.Q.value = q;
+  bq.frequency.setValueAtTime(f0, t);
+  bq.frequency.exponentialRampToValueAtTime(Math.max(f1, 40), t + dur);
+  const g = AC.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain, t + .0012);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(bq); bq.connect(g); g.connect(out);
+  s.start(t, Math.random() * .8); s.stop(t + dur + .02);
+}
+
+/* 部品：膜の振動モード。ピッチが少し下がりながら減衰する */
+function mode(out, t, f, bend, amp, dur, type){
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(f, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(f * bend, 20), t + dur * .55);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(amp, t + .0018);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .02);
+}
+
+/* 部品：バチが皮を叩く瞬間のクリック。実音の「立ち」はここで決まる */
+function click(out, t, freq, amp, dur){
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(freq, t);
+  o.frequency.exponentialRampToValueAtTime(freq * .35, t + dur);
+  g.gain.setValueAtTime(amp, t);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .01);
+}
+
+let lastHitTime = 0;
+function hitBus(level){
+  /* 高速連打で音が飽和しないよう、直前の打点が近いほど少し絞る */
+  const gap = AC.currentTime - lastHitTime;
+  lastHitTime = AC.currentTime;
+  const duck = gap < .07 ? .62 + gap * 5.4 : 1;
+  const out = AC.createGain();
+  out.gain.value = level * duck;
+  out.connect(seComp);
+  out.connect(revGain);
+  return out;
+}
+
+/* ドン＝面。バチの打撃 → 皮の主モード → 胴の空気の共鳴 */
+function playDon(){
+  const t = AC.currentTime + .001;
+  const v = .97 + Math.random() * .06;
+  const out = hitBus(.85);
+
+  click(out, t, 1500 * v, .34, .012);
+  noiseHit(out, t, {type:'lowpass',  f0:2600 * v, f1:190, q:.7,  gain:.42, dur:.055});
+  noiseHit(out, t, {type:'bandpass', f0:520 * v,  f1:150, q:1.1, gain:.30, dur:.10});
+
+  mode(out, t,  92 * v, .72, .62, .46);      // 胴の空気（一番低い押し）
+  mode(out, t, 176 * v, .70, .78, .34);      // 皮の基音
+  mode(out, t, 262 * v, .68, .34, .21);      // 第2モード
+  mode(out, t, 372 * v, .66, .17, .13);
+  mode(out, t, 498 * v, .64, .08, .085);
+}
+
+/* カッ＝縁。木と木がぶつかる硬い音。余韻はほぼ無い */
+function playKa(){
+  const t = AC.currentTime + .001;
+  const v = .96 + Math.random() * .08;
+  const out = hitBus(.7);
+
+  click(out, t, 3400 * v, .40, .008);
+  noiseHit(out, t, {type:'bandpass', f0:2900 * v, f1:1150, q:.8,  gain:.75, dur:.048});
+  noiseHit(out, t, {type:'highpass', f0:7200,     f1:5200, q:.7,  gain:.30, dur:.016});
+
+  mode(out, t,  880 * v, .90, .20, .042, 'triangle');
+  mode(out, t, 1460 * v, .90, .26, .036, 'triangle');
+  mode(out, t, 2240 * v, .90, .17, .026, 'triangle');
+  mode(out, t, 3260 * v, .90, .09, .018, 'triangle');
+  mode(out, t,  300 * v, .78, .10, .055);    // 胴がわずかに反応する
+}
+
+function playPop(){
+  const t = AC.currentTime + .001;
+  const out = hitBus(.9);
+  noiseHit(out, t, {type:'bandpass', f0:1800, f1:6000, q:.6, gain:.55, dur:.16});
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(480, t);
+  o.frequency.exponentialRampToValueAtTime(1900, t + .14);
+  g.gain.setValueAtTime(.26, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + .24);
+}
+
+/* =========================================================
+   3. 読み込み UI
+========================================================= */
+let song = null, audioBuf = null, audioName = '';
+
+async function useSong(tjaText, audBuf, audName){
+  const parsed = parseTJA(tjaText);
+  if(!parsed.courses.length){ alert('譜面（#START〜#END）が見つかりません'); return false; }
+  audioBuf = null; audioName = '';
+  if(audBuf){
+    try{ audioBuf = await AC.decodeAudioData(audBuf); audioName = audName || ''; }
+    catch(err){ alert('音源を再生できませんでした: ' + (audName || '')); }
+  }
+  song = parsed;
+  renderSelect();
+  return true;
+}
+
+/* 本家の難易度色 */
+const DIFF_COLOR = ['#d8425e', '#61b32c', '#3b78c8', '#8b3fb0', '#5b2f8f'];
+const DIFF_MAXSTAR = [5, 7, 8, 10, 10];
+
+function renderSelect(){
+  const h = song.headers;
+  $('#title').textContent = h.TITLE || '(無題)';
+  $('#subtitle').textContent = [h.SUBTITLE ? h.SUBTITLE.replace(/^--?/, '') : '',
+    audioName ? '♪ ' + audioName : '音源なし（無音で演奏）'].filter(Boolean).join('　/　');
+
+  const list = $('#courses'); list.innerHTML = '';
+  song.courses.forEach((c, i) => {
+    const di = DIFF_IDX[String(c.name).toUpperCase()];
+    const d = di === undefined ? 3 : di;
+    const lv = c.level || 0;
+    const max = Math.max(DIFF_MAXSTAR[d], lv);
+
+    const b = document.createElement('button');
+    b.className = 'diff';
+    b.style.setProperty('--dc', DIFF_COLOR[d]);
+
+    let stars = '';
+    if(lv > 10){
+      stars = `<span class="lvnum">★${lv}</span>`;
+    }else{
+      for(let k = 0; k < max; k++) stars += `<i class="${k < lv ? '' : 'off'}">★</i>`;
+    }
+    b.innerHTML = `<div class="dh">${courseLabel(c)}</div>
+      <div class="stars">${stars}</div>
+      <div class="dn">${c.hitCount} ノーツ</div>`;
+    b.onclick = () => startGame(i);
+    list.appendChild(b);
+  });
+  show('s-select');
+
+  fitText($('#title'), 21, 12);
+  fitText($('#subtitle'), 11.5, 8.5);
+  [...list.children].forEach(d => fitText(d.querySelector('.dh'), 16, 9));
+}
+
+/* 設定 */
+const CFG = {speed:1.6, offset:0, auto:false, loose:false};
+/* 設定の保存。localStorage が使えない環境ではその場限りの記憶になる */
+const STORE_KEY = 'taiko.settings.v1';
+const Store = {
+  ok: (() => { try{ localStorage.setItem('_t','1'); localStorage.removeItem('_t'); return true; }
+               catch(e){ return false; } })(),
+  mem: {},
+  load(){
+    if(!this.ok) return this.mem;
+    try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ return {}; }
+  },
+  save(o){
+    this.mem = o;
+    if(!this.ok) return;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(o)); }catch(e){}
+  }
+};
+
+/* 保存する項目。id → 既定値 */
+const SETTINGS = {
+  speed:{el:'speed', def:1.6}, off:{el:'off', def:0},
+  bgm:{el:'bgm', def:70},      se:{el:'se', def:60},
+  auto:{el:'auto', def:false}, loose:{el:'loose', def:false},
+  who:{el:'up-who', def:''}
+};
+
+function saveSettings(){
+  const o = {};
+  for(const k in SETTINGS){
+    const el = $('#' + SETTINGS[k].el);
+    if(el) o[k] = el.type === 'checkbox' ? el.checked : el.value;
+  }
+  Store.save(o);
+}
+
+function bindOpts(){
+  const saved = Store.load();
+  const get = k => saved[k] === undefined ? SETTINGS[k].def : saved[k];
+
+  const bind = (key, out, fn) => {
+    const el = $('#' + SETTINGS[key].el);
+    el.value = get(key);
+    const upd = () => {
+      fn(parseFloat(el.value));
+      $('#' + out).textContent = key === 'off' ? el.value + ' ms' : el.value;
+    };
+    el.oninput = () => { upd(); saveSettings(); };
+    upd();
+  };
+  bind('speed','v-speed', v => CFG.speed = v);
+  bind('off','v-off', v => CFG.offset = v / 1000);
+  bind('bgm','v-bgm', v => bgmGain.gain.value = v / 100);
+  bind('se','v-se', v => seGain.gain.value = v / 100);
+
+  const chk = (key, fn) => {
+    const el = $('#' + SETTINGS[key].el);
+    el.checked = !!get(key); fn(el.checked);
+    el.onchange = () => { fn(el.checked); saveSettings(); };
+  };
+  chk('auto',  v => CFG.auto = v);
+  chk('loose', v => CFG.loose = v);
+
+  // 投稿者名も覚えておく
+  const who = $('#up-who');
+  who.value = get('who');
+  who.oninput = saveSettings;
+
+  $('#reset-cfg').onclick = () => {
+    for(const k in SETTINGS){
+      const el = $('#' + SETTINGS[k].el);
+      if(!el || k === 'who') continue;
+      if(el.type === 'checkbox') el.checked = SETTINGS[k].def;
+      else { el.value = SETTINGS[k].def; el.dispatchEvent(new Event('input')); }
+    }
+    CFG.auto = $('#auto').checked; CFG.loose = $('#loose').checked;
+    saveSettings();
+  };
+
+  $('#back-load').onclick = () => show('s-load');
+  $('#tosel').onclick = () => show('s-select');
+  $('#tolib').onclick = () => show('s-load');
+  $('#retry').onclick = () => startGame(G.courseIdx);
+}
+
+/* =========================================================
+   4. ゲーム本体
+========================================================= */
+const cv = $('#cv'), cx = cv.getContext('2d');
+const W = 1280, H = 300;
+cx.scale(2, 2);
+
+/* 本家の判定幅（ミリ秒）。おに・むずかしい / ふつう・かんたん の2系統 */
+const JUDGE_TABLE = {
+  0:{GOOD:.041708, OK:.108442, BAD:.125125},   // かんたん
+  1:{GOOD:.041708, OK:.108442, BAD:.125125},   // ふつう
+  2:{GOOD:.025025, OK:.075075, BAD:.108442},   // むずかしい
+  3:{GOOD:.025025, OK:.075075, BAD:.108442},   // おに
+  4:{GOOD:.025025, OK:.075075, BAD:.108442}    // おに(裏)
+};
+const DIFF_IDX = {'0':0, EASY:0, '1':1, NORMAL:1, '2':2, HARD:2, '3':3, ONI:3, '4':4, EDIT:4, URA:4};
+let JUDGE = JUDGE_TABLE[3];
+
+const BAR_H = 58, LANE_Y = 58, LANE_H = 152, PANEL_W = 250;
+const JUDGE_X = 372, PX_BEAT = 190, CY = LANE_Y + LANE_H / 2;
+
+const G = {
+  running:false, courseIdx:0, course:null, startAt:0, src:null,
+  score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
+  gauge:0, gaugeUp:1, effects:[], judgeTxt:null, drumHit:{l:0,r:0,don:false},
+  endAt:0, lastBig:null
+};
+
+function startGame(idx){
+  if(AC.state === 'suspended') AC.resume();
+  const c = song.courses[idx];
+  G.courseIdx = idx;
+  G.course = c;
+  c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
+  Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
+    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, running:true});
+  G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
+  G.base = c.scoreInit || 300;
+  G.diff = c.scoreDiff || 100;
+
+  const di = DIFF_IDX[String(c.name).toUpperCase()];
+  G.diffIdx = di === undefined ? 3 : di;
+  const w = JUDGE_TABLE[G.diffIdx], k = CFG.loose ? 1.4 : 1;
+  JUDGE = {GOOD:w.GOOD * k, OK:w.OK * k, BAD:w.BAD * k};
+
+  const first = c.notes.length ? c.notes[0].time : 0;
+  const lead = Math.max(2.2, -Math.min(first, 0) + 1.2);
+  G.startAt = AC.currentTime + lead;
+
+  if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
+  if(audioBuf){
+    const s = AC.createBufferSource();
+    s.buffer = audioBuf; s.connect(bgmGain); s.start(G.startAt);
+    G.src = s;
+  }
+  const last = c.notes.length ? Math.max(...c.notes.map(n => Math.max(n.time, n.end || 0))) : 0;
+  G.endAt = Math.max(last + 2.5, audioBuf ? audioBuf.duration : 0);
+
+  $('#g-title').textContent = (song.headers.TITLE || '') + ' / ' + courseLabel(c) + ' ★' + (c.level || '?');
+  document.body.classList.add('playing');
+  show('s-game');
+  requestAnimationFrame(loop);
+}
+
+const now = () => AC.currentTime - G.startAt + CFG.offset;
+
+function quit(){
+  G.running = false;
+  document.body.classList.remove('playing');
+  if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
+}
+
+/* ---- 判定 ---- */
+function activeRoll(t){
+  const ns = G.course.notes;
+  for(const n of ns){
+    if(n.type < 5 || n.done) continue;
+    if(t >= n.time - .02 && t <= n.end) return n;
+    if(n.time > t + 1) break;
+  }
+  return null;
+}
+
+function hit(isDon, big){
+  if(!G.running) return;
+  const t = now();
+  G.drumHit[isDon ? 'l' : 'r'] = performance.now();
+  isDon ? playDon() : playKa();
+
+  const ns = G.course.notes;
+  let target = null, bd = 9;
+  for(const n of ns){
+    if(n.type >= 5 || n.done) continue;
+    const d = t - n.time;
+    if(d < -JUDGE.BAD) break;
+    if(d > JUDGE.BAD) continue;
+    if(Math.abs(d) < bd){ bd = Math.abs(d); target = n; }
+  }
+
+  if(target){
+    const wantDon = target.type === T.DON || target.type === T.DONB;
+    if(wantDon !== isDon){ miss(target); return; }
+    target.done = true; target.hitAt = t;
+    const isBig = target.type === T.DONB || target.type === T.KAB;
+    const mul = isBig ? 2 : 1;
+    if(bd <= JUDGE.GOOD){ G.good++; addScore(mul); flash('良', target); }
+    else if(bd <= JUDGE.OK){ G.ok++; addScore(mul * .5); flash('可', target); }
+    else { miss(target); return; }
+    G.combo++; G.maxCombo = Math.max(G.combo, G.maxCombo);
+    G.gauge = clamp(G.gauge + G.gaugeUp * (bd <= JUDGE.GOOD ? 1 : .6), 0, 100);
+    G.effects.push({t:performance.now(), big:isBig});
+    return;
+  }
+
+  const r = activeRoll(t);
+  if(r){
+    r.count++; r.lastHitAt = performance.now(); G.rollHits++;
+    G.score += r.type === T.ROLLB ? 200 : 100;
+    G.effects.push({t:performance.now(), big:r.type === T.ROLLB, roll:true});
+    if((r.type === T.BALLOON || r.type === T.KUSU) && r.count >= r.max){
+      r.done = true; G.score += 5000; playPop();
+      G.effects.push({t:performance.now(), big:true, pop:true});
+    }
+  }
+}
+
+function addScore(mul){
+  G.score += Math.round((G.base + G.diff * Math.min(Math.floor(G.combo / 10), 10)) * mul);
+}
+function miss(n){
+  if(n) n.done = true;
+  G.bad++; G.combo = 0;
+  G.gauge = clamp(G.gauge - G.gaugeUp * 1.6, 0, 100);
+  flash('不可', n);
+}
+function flash(txt, n){ G.judgeTxt = {txt, t:performance.now()}; }
+
+/* ---- 更新 ---- */
+function update(t){
+  const ns = G.course.notes;
+  for(const n of ns){
+    if(n.done) continue;
+    if(n.type < 5){
+      if(CFG.auto && t >= n.time){
+        const isDon = n.type === T.DON || n.type === T.DONB;
+        hit(isDon); continue;
+      }
+      if(t > n.time + JUDGE.BAD) miss(n);
+    }else{
+      if(CFG.auto && t >= n.time && t <= n.end){
+        if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true); }
+      }
+      if(t > n.end) n.done = true;
+    }
+  }
+  if(t > G.endAt){ quit(); showResult(); }
+}
+
+/* ---- 描画 ---- */
+function xOf(n, t){ return JUDGE_X + (n.time - t) * (n.bpm / 60) * n.scroll * PX_BEAT * CFG.speed; }
+function inGogo(t){ return G.course.gogos.some(g => t >= g.s && t < g.e); }
+
+function render(t){
+  cx.clearRect(0, 0, W, H);
+  drawTopBar(t);
+  drawLane(t);
+  drawFoot();
+}
+
+/* ---- 上帯：難易度プレートと魂ゲージ ---- */
+function drawTopBar(t){
+  const g = cx.createLinearGradient(0, 0, 0, BAR_H);
+  g.addColorStop(0, '#f3e8d0'); g.addColorStop(1, '#ddcda9');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, BAR_H);
+  cx.fillStyle = 'rgba(90,66,32,.35)'; cx.fillRect(0, BAR_H - 2, W, 2);
+
+  // 難易度プレート
+  const c = G.course;
+  const col = ['#3f9c52','#c98a1e','#cf4030','#8f3fae','#8f3fae'][G.diffIdx] || '#8f3fae';
+  cx.fillStyle = '#141926'; cx.fillRect(0, 0, PANEL_W, BAR_H);
+  const pg = cx.createLinearGradient(0, 0, 10, 0);
+  pg.addColorStop(0, col); pg.addColorStop(1, 'rgba(0,0,0,0)');
+  cx.fillStyle = col; cx.fillRect(0, 0, 6, BAR_H);
+  cx.fillStyle = pg; cx.globalAlpha = .3; cx.fillRect(0, 0, 60, BAR_H); cx.globalAlpha = 1;
+
+  cx.textAlign = 'left'; cx.fillStyle = '#f4efe4'; cx.font = '800 19px system-ui';
+  cx.fillText(courseLabel(c), 26, 26);
+  const lv = Math.min(c.level || 1, 10);
+  cx.font = '700 12px system-ui';
+  for(let i = 0; i < 10; i++){
+    cx.fillStyle = i < lv ? '#e8b93c' : 'rgba(244,239,228,.14)';
+    cx.fillText('★', 26 + i * 14, 45);
+  }
+
+  drawGauge(PANEL_W + 26, 12, W - PANEL_W - 132, 34);
+}
+
+function drawGauge(x, y, w, h){
+  const cells = 50, cw = w / cells, norma = .8;
+  cx.fillStyle = '#241c10'; cx.fillRect(x - 5, y - 5, w + 10, h + 10);
+  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  for(let i = 0; i < cells; i++){
+    const on = G.gauge / 100 > i / cells, gold = i / cells >= norma;
+    const x0 = x + i * cw + .7, w0 = cw - 1.4;
+    if(on){
+      const g = cx.createLinearGradient(0, y, 0, y + h);
+      if(gold){ g.addColorStop(0,'#fff2c4'); g.addColorStop(.42,'#e8b93c'); g.addColorStop(1,'#a87d10'); }
+      else { g.addColorStop(0,'#ff9b8c'); g.addColorStop(.42,'#d93a2b'); g.addColorStop(1,'#8e2318'); }
+      cx.fillStyle = g;
+      cx.fillRect(x0, y, w0, h);
+      cx.fillStyle = 'rgba(255,255,255,.22)'; cx.fillRect(x0, y, w0, 3);
+    }else{
+      cx.fillStyle = gold ? '#3c331c' : '#3a1e19';
+      cx.fillRect(x0, y, w0, h);
+    }
+  }
+  cx.fillStyle = '#f4efe4'; cx.fillRect(x + w * norma - 1, y - 7, 2, h + 14);
+
+  // 魂
+  const cleared = G.gauge >= 80;
+  const mx = x + w + 44, my = y + h / 2;
+  if(cleared){
+    const pulse = 30 + Math.sin(performance.now() / 230) * 3.5;
+    const rg = cx.createRadialGradient(mx, my, 6, mx, my, pulse);
+    rg.addColorStop(0, 'rgba(232,185,60,.5)'); rg.addColorStop(1, 'rgba(232,185,60,0)');
+    cx.fillStyle = rg; cx.beginPath(); cx.arc(mx, my, pulse, 0, 7); cx.fill();
+  }
+  const sg = cx.createLinearGradient(0, my - 22, 0, my + 22);
+  if(cleared){ sg.addColorStop(0, '#ffe27a'); sg.addColorStop(1, '#c08c14'); }
+  else { sg.addColorStop(0, '#7b6c50'); sg.addColorStop(1, '#4e432f'); }
+  cx.fillStyle = sg; cx.beginPath(); cx.arc(mx, my, 21, 0, 7); cx.fill();
+  cx.fillStyle = cleared ? '#3a2a08' : '#b3a68c';
+  cx.font = '800 21px system-ui'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('魂', mx, my + 1);
+  cx.textBaseline = 'alphabetic';
+}
+
+/* ---- レーン ---- */
+function drawLane(t){
+  const gogo = inGogo(t);
+  const g = cx.createLinearGradient(0, LANE_Y, 0, LANE_Y + LANE_H);
+  if(gogo){
+    g.addColorStop(0, '#6d160f'); g.addColorStop(.16, '#a82518');
+    g.addColorStop(.5, '#cf3a26'); g.addColorStop(.84, '#a82518'); g.addColorStop(1, '#5f120c');
+  }else{
+    g.addColorStop(0, '#151a26'); g.addColorStop(.16, '#232b3e');
+    g.addColorStop(.5, '#2c3548'); g.addColorStop(.84, '#232b3e'); g.addColorStop(1, '#12161f');
+  }
+  cx.fillStyle = g; cx.fillRect(0, LANE_Y, W, LANE_H);
+
+  if(gogo){                                   // ゴーゴーの流れる帯
+    const k = (performance.now() / 26) % 60;
+    cx.save(); cx.beginPath(); cx.rect(0, LANE_Y, W, LANE_H); cx.clip();
+    cx.fillStyle = 'rgba(255,200,90,.10)';
+    for(let x = -120; x < W + 120; x += 60){
+      cx.beginPath();
+      cx.moveTo(x + k, LANE_Y); cx.lineTo(x + k + 26, LANE_Y);
+      cx.lineTo(x + k - 14, LANE_Y + LANE_H); cx.lineTo(x + k - 40, LANE_Y + LANE_H);
+      cx.fill();
+    }
+    cx.restore();
+  }
+  cx.fillStyle = 'rgba(0,0,0,.55)';
+  cx.fillRect(0, LANE_Y, W, 2); cx.fillRect(0, LANE_Y + LANE_H - 2, W, 2);
+  cx.fillStyle = 'rgba(255,255,255,.07)';
+  cx.fillRect(0, LANE_Y + 2, W, 1); cx.fillRect(0, LANE_Y + LANE_H - 3, W, 1);
+
+  // 小節線
+  cx.strokeStyle = 'rgba(255,255,255,.22)'; cx.lineWidth = 2;
+  for(const b of G.course.bars){
+    const x = xOf(b, t);
+    if(x < PANEL_W - 20 || x > W + 20) continue;
+    cx.beginPath(); cx.moveTo(x, LANE_Y + 8); cx.lineTo(x, LANE_Y + LANE_H - 8); cx.stroke();
+  }
+
+  // 判定枠
+  cx.fillStyle = 'rgba(0,0,0,.22)'; cx.beginPath(); cx.arc(JUDGE_X, CY, 38, 0, 7); cx.fill();
+  cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.lineWidth = 3;
+  cx.beginPath(); cx.arc(JUDGE_X, CY, 38, 0, 7); cx.stroke();
+  cx.strokeStyle = 'rgba(255,255,255,.14)'; cx.lineWidth = 2;
+  cx.beginPath(); cx.arc(JUDGE_X, CY, 52, 0, 7); cx.stroke();
+
+  // 命中の光
+  for(let i = G.effects.length - 1; i >= 0; i--){
+    const e = G.effects[i], a = (performance.now() - e.t) / 260;
+    if(a > 1){ G.effects.splice(i, 1); continue; }
+    cx.globalAlpha = (1 - a) * .85;
+    cx.fillStyle = e.pop ? '#f0c04b' : '#fff6dc';
+    cx.beginPath(); cx.arc(JUDGE_X, CY, (e.big ? 48 : 36) * (1 + a * .85), 0, 7); cx.fill();
+    cx.globalAlpha = 1;
+  }
+
+  const ns = G.course.notes;
+
+  // 連打
+  for(const n of ns){
+    if(n.type < 5) continue;
+    const x1 = xOf(n, t), x2 = xOf({time:n.end, bpm:n.bpm, scroll:n.scroll}, t);
+    if(x2 < PANEL_W - 80 || x1 > W + 80) continue;
+    const r = n.type === T.ROLLB ? 44 : 30;
+    cx.fillStyle = '#fdfdfd';
+    cx.beginPath();
+    cx.moveTo(x1, CY - r); cx.lineTo(x2, CY - r);
+    cx.arc(x2, CY, r, -Math.PI / 2, Math.PI / 2);
+    cx.lineTo(x1, CY + r); cx.arc(x1, CY, r, Math.PI / 2, -Math.PI / 2);
+    cx.fill();
+    cx.fillStyle = n.max && n.done ? '#c9932a' : '#f5a623';
+    cx.beginPath();
+    cx.moveTo(x1, CY - r + 4); cx.lineTo(x2, CY - r + 4);
+    cx.arc(x2, CY, r - 4, -Math.PI / 2, Math.PI / 2);
+    cx.lineTo(x1, CY + r - 4); cx.arc(x1, CY, r - 4, Math.PI / 2, -Math.PI / 2);
+    cx.fill();
+    if(n.max && !n.done && t >= n.time && t <= n.end){
+      const p = clamp(1 - n.count / n.max, 0, 1);
+      cx.fillStyle = '#f5a623';
+      cx.beginPath(); cx.arc(x1, CY, 26 + 14 * p, 0, 7); cx.fill();
+      cx.strokeStyle = '#fdfdfd'; cx.lineWidth = 3; cx.stroke();
+    }
+  }
+
+  // 音符（先の音符が上に重なるよう後ろから描く）
+  for(let i = ns.length - 1; i >= 0; i--){
+    const n = ns[i];
+    if(n.type >= 5 || n.done) continue;
+    const x = xOf(n, t);
+    if(x < PANEL_W - 60 || x > W + 60) continue;
+    const big = n.type === T.DONB || n.type === T.KAB, r = big ? 44 : 30;
+    const don = n.type === T.DON || n.type === T.DONB;
+    cx.fillStyle = 'rgba(0,0,0,.3)'; cx.beginPath(); cx.arc(x + 2, CY + 3, r, 0, 7); cx.fill();
+    cx.fillStyle = '#fdfdfd';        cx.beginPath(); cx.arc(x, CY, r, 0, 7); cx.fill();
+    cx.fillStyle = don ? '#c8352a' : '#2a7fc0';
+    cx.beginPath(); cx.arc(x, CY, r - 5, 0, 7); cx.fill();
+    const hl = cx.createLinearGradient(0, CY - r, 0, CY + r);
+    hl.addColorStop(0, don ? '#f26a55' : '#5cb2ea'); hl.addColorStop(.55, 'rgba(255,255,255,0)');
+    cx.fillStyle = hl; cx.beginPath(); cx.arc(x, CY, r - 5, 0, 7); cx.fill();
+  }
+
+  // 判定文字
+  if(G.judgeTxt){
+    const a = (performance.now() - G.judgeTxt.t) / 420;
+    if(a < 1){
+      const s = G.judgeTxt.txt;
+      cx.globalAlpha = 1 - a * a;
+      cx.textAlign = 'center'; cx.font = '800 36px system-ui';
+      cx.lineWidth = 6; cx.strokeStyle = '#1a1206';
+      cx.fillStyle = s === '良' ? '#ffdf6e' : s === '可' ? '#ffffff' : '#7ea7d8';
+      cx.strokeText(s, JUDGE_X, CY - 54 - a * 16);
+      cx.fillText(s, JUDGE_X, CY - 54 - a * 16);
+      cx.globalAlpha = 1;
+    }else G.judgeTxt = null;
+  }
+
+  drawRollCount(t);
+
+  // 左パネル（音符を隠す）
+  cx.fillStyle = '#141926'; cx.fillRect(0, LANE_Y, PANEL_W, LANE_H);
+  const eg = cx.createLinearGradient(PANEL_W - 26, 0, PANEL_W, 0);
+  eg.addColorStop(0, 'rgba(0,0,0,0)'); eg.addColorStop(1, 'rgba(0,0,0,.55)');
+  cx.fillStyle = eg; cx.fillRect(PANEL_W - 26, LANE_Y, 26, LANE_H);
+  cx.fillStyle = 'rgba(232,185,60,.4)'; cx.fillRect(PANEL_W - 1, LANE_Y, 1, LANE_H);
+  drawDrum(122, CY);
+
+  if(t < 0){
+    cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,255,255,.7)';
+    cx.font = '700 22px system-ui';
+    cx.fillText('― ' + Math.ceil(-t) + ' ―', (PANEL_W + W) / 2, CY + 8);
+  }
+}
+
+/* ---- 連打カウンター ---- */
+function drawRollCount(t){
+  let cur = null;
+  for(const n of G.course.notes){
+    if(n.time > t + .5) break;
+    if(n.type >= 5 && !n.done && t >= n.time && t <= n.end){ cur = n; break; }
+  }
+  if(cur) G.rollShow = {n:cur, off:performance.now()};
+  const sh = G.rollShow;
+  if(!sh) return;
+
+  const age = cur ? 0 : performance.now() - sh.off;
+  if(age > 900){ G.rollShow = null; return; }
+
+  const n = sh.n;
+  const balloon = n.type === T.BALLOON || n.type === T.KUSU;
+  const num = balloon ? Math.max(n.max - n.count, 0) : n.count;
+  const bump = clamp(1 - (performance.now() - (n.lastHitAt || 0)) / 150, 0, 1);
+
+  cx.save();
+  cx.globalAlpha = cur ? 1 : 1 - age / 900;
+  cx.translate(JUDGE_X + 205, CY - 30 - (cur ? 0 : age / 900 * 22));
+  cx.scale(1 + bump * .22, 1 + bump * .22);
+  cx.textAlign = 'center';
+
+  cx.font = '800 20px system-ui'; cx.lineWidth = 6; cx.strokeStyle = '#1a1206';
+  cx.fillStyle = '#ffdf6e';
+  const cap = balloon ? (n.type === T.KUSU ? 'くす玉!!' : 'ふうせん!!') : '連打!!';
+  cx.strokeText(cap, 0, -34); cx.fillText(cap, 0, -34);
+
+  const size = String(num).length >= 4 ? 40 : 52;
+  cx.font = `800 ${size}px system-ui`; cx.lineWidth = 8; cx.strokeStyle = '#1a1206';
+  cx.fillStyle = bump > .3 ? '#ffffff' : '#ffdf6e';
+  cx.strokeText(num, 0, 8); cx.fillText(num, 0, 8);
+  cx.restore();
+}
+
+/* ---- 太鼓とコンボ ---- */
+function drawDrum(x, y){
+  const rec = k => clamp(1 - (performance.now() - G.drumHit[k]) / 110, 0, 1);
+  const l = rec('l'), r = rec('r');
+  const pop = 1 + Math.max(l, r) * .04;
+  cx.save(); cx.translate(x, y); cx.scale(pop, pop);
+
+  cx.fillStyle = '#8a6a1c'; cx.beginPath(); cx.arc(0, 0, 56, 0, 7); cx.fill();   // 胴
+  cx.fillStyle = '#c9a02e'; cx.beginPath(); cx.arc(0, 0, 52, 0, 7); cx.fill();   // 金の縁
+  cx.fillStyle = '#241a10'; cx.beginPath(); cx.arc(0, 0, 46, 0, 7); cx.fill();   // 黒革
+  cx.fillStyle = '#f6eeda'; cx.beginPath(); cx.arc(0, 0, 38, 0, 7); cx.fill();   // 面
+  if(l > 0){ cx.fillStyle = `rgba(226,72,60,${l * .85})`; cx.beginPath(); cx.arc(0, 0, 38, 0, 7); cx.fill(); }
+  if(r > 0){
+    cx.strokeStyle = `rgba(58,144,216,${r * .9})`; cx.lineWidth = 8;
+    cx.beginPath(); cx.arc(0, 0, 42, 0, 7); cx.stroke();
+  }
+  cx.restore();
+
+  if(G.combo >= 10){
+    const s = String(G.combo);
+    const size = s.length <= 2 ? 42 : s.length === 3 ? 34 : 27;
+    const hot = G.combo >= 100;
+    if(hot){
+      cx.fillStyle = 'rgba(240,192,75,.22)';
+      cx.beginPath(); cx.arc(x, y, 48 + Math.sin(performance.now() / 160) * 3, 0, 7); cx.fill();
+    }
+    cx.textAlign = 'center'; cx.font = `800 ${size}px system-ui`;
+    cx.lineWidth = 6; cx.strokeStyle = hot ? '#3a2408' : '#f6eeda';
+    cx.strokeText(s, x, y + size * .34);
+    cx.fillStyle = hot ? '#ffd85a' : '#2f1d0c';
+    cx.fillText(s, x, y + size * .34);
+    cx.font = '700 12px system-ui'; cx.lineWidth = 4;
+    cx.strokeStyle = '#12141c'; cx.fillStyle = '#f0c04b';
+    cx.strokeText('コンボ', x, y + 74); cx.fillText('コンボ', x, y + 74);
+  }
+}
+
+/* ---- 下帯：スコアと曲名 ---- */
+function drawFoot(){
+  const y0 = LANE_Y + LANE_H;
+  const g = cx.createLinearGradient(0, y0, 0, H);
+  g.addColorStop(0, '#e9dcc0'); g.addColorStop(1, '#cdbb96');
+  cx.fillStyle = g; cx.fillRect(0, y0, W, H - y0);
+  cx.fillStyle = 'rgba(90,66,32,.3)'; cx.fillRect(0, y0, W, 2);
+  cx.fillStyle = '#141926'; cx.fillRect(0, y0, PANEL_W, H - y0);
+  cx.fillStyle = 'rgba(232,185,60,.3)'; cx.fillRect(PANEL_W - 1, y0, 1, H - y0);
+
+  cx.textAlign = 'right';
+  cx.fillStyle = '#6f7d95'; cx.font = '700 10px system-ui';
+  cx.fillText('S C O R E', PANEL_W - 18, y0 + 24);
+  cx.fillStyle = '#f4efe4'; cx.font = '800 33px system-ui';
+  cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, y0 + 60);
+
+  cx.textAlign = 'left'; cx.fillStyle = '#33261a'; cx.font = '800 18px system-ui';
+  cx.fillText(song.headers.TITLE || '', PANEL_W + 26, y0 + 34);
+  const sub = (song.headers.SUBTITLE || '').replace(/^--?/, '');
+  if(sub){
+    cx.fillStyle = 'rgba(51,38,26,.55)'; cx.font = '600 11.5px system-ui';
+    cx.fillText(sub, PANEL_W + 26, y0 + 56);
+  }
+}
+
+function loop(){
+  if(!G.running) return;
+  const t = now();
+  update(t); render(t);
+  requestAnimationFrame(loop);
+}
+
+/* ---- 結果 ---- */
+function showResult(){
+  const c = G.course, clear = G.gauge >= 80;
+  $('#r-title').textContent = song.headers.TITLE || '';
+  $('#r-course').textContent = courseLabel(c) + ' ★' + (c.level || '?');
+  const rank = $('#rank');
+  rank.textContent = G.bad === 0 && G.ok === 0 && G.good > 0 ? '全良' : clear ? 'クリア' : '不合格';
+  rank.className = 'rank ' + (clear ? 'clear' : 'fail');
+  $('#r-score').textContent = G.score.toLocaleString();
+  $('#r-good').textContent = G.good;
+  $('#r-ok').textContent = G.ok;
+  $('#r-bad').textContent = G.bad;
+  $('#r-combo').textContent = G.maxCombo;
+  $('#r-roll').textContent = G.rollHits;
+  show('s-result');
+}
+
+/* =========================================================
+   5. 入力
+========================================================= */
+const KEYS = {KeyF:'don', KeyJ:'don', KeyD:'ka', KeyK:'ka', Space:'don'};
+let touchMode = false;
+
+function tap(isDon, el){
+  if(!G.running) return;                       // 演奏中以外は鳴らさない
+  if(AC.state === 'suspended') AC.resume();
+  hit(isDon);
+  if(el){ el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 90); }
+}
+
+/* 入力欄に文字を打っている間は、太鼓のキーを横取りしない */
+const typing = () => {
+  const el = document.activeElement;
+  return !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+};
+
+addEventListener('keydown', e => {
+  if(typing()) return;
+  if(e.code === 'Escape' && G.running){ quit(); showResult(); return; }
+  const k = KEYS[e.code];
+  if(!k) return;
+  if(!G.running) return;          // 演奏中以外はブラウザ側の動作を邪魔しない
+  e.preventDefault();
+  if(e.repeat) return;
+  tap(k === 'don');
+});
+
+/* 画面下のボタン。指ごとに touchstart が飛ぶので同時押しもそのまま拾える */
+document.querySelectorAll('#pads button').forEach(b => {
+  const isDon = b.dataset.k === 'don';
+  b.addEventListener('touchstart', e => {
+    touchMode = true; e.preventDefault();
+    for(let i = 0; i < e.changedTouches.length; i++) tap(isDon, b);
+  }, {passive:false});
+  b.addEventListener('mousedown', e => {
+    if(touchMode) return;
+    e.preventDefault(); tap(isDon, b);
+  });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+
+/* 譜面を直接タップ：外側＝縁（カッ）, 内側＝面（ドン） */
+function laneHit(clientX){
+  const r = cv.getBoundingClientRect();
+  const p = (clientX - r.left) / r.width;
+  tap(p > .25 && p < .75);
+}
+cv.addEventListener('touchstart', e => {
+  touchMode = true; e.preventDefault();
+  for(const tc of e.changedTouches) laneHit(tc.clientX);
+}, {passive:false});
+cv.addEventListener('mousedown', e => { if(!touchMode) laneHit(e.clientX); });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+/* 全画面・中断 */
+$('#fs').onclick = async () => {
+  const el = $('#s-game');
+  try{
+    if(document.fullscreenElement) await document.exitFullscreen();
+    else{
+      await (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen());
+      if(screen.orientation && screen.orientation.lock){
+        try{ await screen.orientation.lock('landscape'); }catch(err){}
+      }
+    }
+  }catch(err){}
+};
+$('#stop').onclick = () => { if(G.running){ quit(); showResult(); } };
+
+/* タッチ端末ならボタンを常時表示 */
+if(navigator.maxTouchPoints > 0 || 'ontouchstart' in window) document.body.classList.add('touch');
+
+/* =========================================================
+   6. 共有ライブラリ（Google ドライブ + Apps Script）
+========================================================= */
+const CLOUD = {
+  gas: 'https://script.google.com/macros/s/AKfycbzNAyCb5lcBuyuHwun5agp2ZTg6W8ctznlGwNzbgpbHi9tPm_I8jgdN8WK8AY-DfzjXow/exec',
+  apiKey: 'AIzaSyB01OatROTN8GaI2PTbaszykKAbg3EyTBU'
+};
+
+const b64 = buf => {
+  const u8 = new Uint8Array(buf), C = 0x8000; let s = '';
+  for(let i = 0; i < u8.length; i += C) s += String.fromCharCode.apply(null, u8.subarray(i, i + C));
+  return btoa(s);
+};
+const unb64 = str => {
+  const bin = atob(str), u8 = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8.buffer;
+};
+
+/* ---- 読み込みオーバーレイ ---- */
+const LOAD = {
+  show(title, sub, mode){
+    $('#load-title').textContent = title;
+    $('#load-sub').textContent = sub || '';
+    this.bar(mode || 'wait');
+    $('#load').classList.add('on');
+  },
+  sub(text){ $('#load-sub').textContent = text; },
+  bar(mode){
+    const b = $('#load-bar');
+    b.classList.toggle('on', mode !== 'none');
+    b.classList.toggle('wait', mode === 'wait');
+    if(mode !== 'progress'){ $('#load-fill').style.width = ''; $('#load-pct').textContent = ''; }
+  },
+  pct(v, label){
+    this.bar('progress');
+    $('#load-fill').style.width = clamp(v, 0, 100) + '%';
+    $('#load-pct').textContent = label || (Math.round(v) + ' %');
+  },
+  hide(){ $('#load').classList.remove('on'); }
+};
+
+/* 進捗を出しながら取得する */
+async function fetchProgress(url, onProgress){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const total = Number(r.headers.get('content-length')) || 0;
+  if(!r.body || !r.body.getReader) return await r.arrayBuffer();
+
+  const reader = r.body.getReader();
+  const chunks = []; let got = 0;
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    chunks.push(value); got += value.length;
+    if(onProgress) onProgress(got, total);
+  }
+  const out = new Uint8Array(got); let at = 0;
+  for(const c of chunks){ out.set(c, at); at += c.length; }
+  return out.buffer;
+}
+
+const mb = n => (n / 1048576).toFixed(1) + ' MB';
+
+async function driveGet(id, label){
+  const onProg = (got, total) => {
+    if(total) LOAD.pct(got / total * 100, `${mb(got)} / ${mb(total)}`);
+    else { LOAD.bar('wait'); $('#load-pct').textContent = mb(got); }
+  };
+  if(label) LOAD.sub(label);
+
+  if(CLOUD.apiKey){
+    try{
+      const buf = await fetchProgress(
+        `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${CLOUD.apiKey}`, onProg);
+      return buf;
+    }catch(err){ /* 公開されていない場合は下の GAS 経由にまわす */ }
+  }
+  LOAD.bar('wait');
+  const buf = await fetchProgress(`${CLOUD.gas}?action=file&id=${encodeURIComponent(id)}`, onProg);
+  const j = JSON.parse(new TextDecoder().decode(buf));
+  if(!j.ok) throw new Error(j.error || '取得に失敗しました');
+  return unb64(j.data);
+}
+
+async function gasPost(payload){
+  const r = await fetch(CLOUD.gas, {
+    method:'POST', redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},   // preflight を避ける
+    body: JSON.stringify(payload)
+  });
+  return await r.json();
+}
+
+let libCache = [];
+
+async function loadLibrary(quiet){
+  const st = $('#lib-status'), box = $('#lib');
+  if(!CLOUD.gas){
+    st.textContent = '未設定';
+    box.innerHTML = '<div class="empty">taiko_tja.html の <b>CLOUD.gas</b> に Apps Script のウェブアプリ URL を書くと、<br>ここに共有された曲が並びます。設置手順は taiko_drive.gs を参照。</div>';
+    return;
+  }
+  st.textContent = '読み込み中…'; box.innerHTML = '';
+  if(!quiet) LOAD.show('曲を よみこみ中', '共有ライブラリに接続しています');
+  try{
+    const r = await fetch(`${CLOUD.gas}?action=list&t=${Date.now()}`);
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error);
+    libCache = j.songs || [];
+    st.textContent = `${libCache.length} 曲`;
+    renderLibrary();
+  }catch(err){
+    st.textContent = '取得できませんでした';
+    box.innerHTML = '<div class="empty">一覧を取得できませんでした。<br>ウェブアプリのアクセス権を「全員」にして再デプロイしたか確認してください。</div>';
+  }finally{
+    LOAD.hide();
+  }
+}
+
+/* ジャンル色。本家のかんばん色に寄せ、曲名から決めて毎回同じ色になるようにする */
+const PLATE_COLORS = [
+  '#3b7fd4', // ポップス   青
+  '#e0762a', // アニメ     橙
+  '#3fb8a8', // ボカロ     青緑
+  '#5fae2e', // バラエティ 緑
+  '#c8a52a', // クラシック 黄
+  '#8e4ec6', // ゲーム     紫
+  '#c2352c'  // ナムコ     朱
+];
+const plateColor = t => {
+  let h = 0;
+  for(let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return PLATE_COLORS[h % PLATE_COLORS.length];
+};
+
+let curIdx = 0;
+
+function renderLibrary(){
+  const box = $('#lib');
+  box.innerHTML = '';
+  const nav = $('#railnav'), np = $('#nowplate');
+
+  if(!libCache.length){
+    nav.style.display = 'none'; np.style.display = 'none';
+    box.innerHTML = '<div class="empty" style="margin:0 auto">まだ曲がありません。<br>下の「曲を追加する」から最初の一曲を上げてください。</div>';
+    return;
+  }
+  nav.style.display = 'block'; np.style.display = 'block';
+
+  libCache.forEach((s, i) => {
+    const cs = parseCourses(s.courses);
+    const top = cs.length ? cs[cs.length - 1] : null;
+    const b = document.createElement('button');
+    b.className = 'plate';
+    b.style.setProperty('--pc', plateColor(s.title || ''));
+    b.innerHTML = `<span class="pt">${esc(s.title)}</span>` +
+      (s.audioId ? '' : '<span class="nosnd">音源なし</span>') +
+      (top ? `<span class="pstar">★${top.lv}</span>` : '');
+    b.onclick = () => (i === curIdx ? playFromLibrary(s, b) : focusPlate(i));
+    box.appendChild(b);
+  });
+  [...box.children].forEach(p => {
+    const t = p.querySelector('.pt');
+    if(t) fitText(t, 17, 7.5, true);
+  });
+  curIdx = Math.min(curIdx, libCache.length - 1);
+  focusPlate(curIdx, true);
+}
+
+function focusPlate(i, instant){
+  const plates = [...$('#lib').children];
+  if(!plates.length) return;
+  curIdx = clamp(i, 0, plates.length - 1);
+  plates.forEach((p, k) => p.classList.toggle('on', k === curIdx));
+
+  const el = plates[curIdx];
+  const rail = $('#lib');
+  rail.scrollTo({
+    left: el.offsetLeft - rail.clientWidth / 2 + el.offsetWidth / 2,
+    behavior: instant ? 'auto' : 'smooth'
+  });
+
+  const s = libCache[curIdx];
+  $('#np-title').textContent = s.title;
+  $('#np-sub').textContent = ['投稿: ' + s.uploader, s.audioId ? null : '音源なし']
+    .filter(Boolean).join('　・　');
+
+  // 難易度チップ
+  const chips = $('#np-chips'); chips.innerHTML = '';
+  for(const c of parseCourses(s.courses)){
+    const e = document.createElement('span');
+    e.className = 'chip';
+    e.style.setProperty('--cc', DIFF_COLOR[c.di]);
+    e.innerHTML = `${esc(c.name)}<em>★${c.lv}</em>`;
+    chips.appendChild(e);
+  }
+  $('#np-count').innerHTML = `<b>${curIdx + 1}</b> / ${libCache.length}`;
+
+  fitText($('#np-title'), 19, 11);
+  fitText($('#np-sub'), 10.5, 8);
+}
+
+/* "おに★9 / むずかしい★7" のような文字列を色つきで扱えるように分解する */
+const LABEL_IDX = {'かんたん':0, 'ふつう':1, 'むずかしい':2, 'おに':3, 'おに(裏)':4};
+function parseCourses(str){
+  const out = [];
+  for(const part of String(str || '').split('/')){
+    const m = part.trim().match(/^(.+?)★(.+)$/);
+    if(!m) continue;
+    const name = m[1].trim();
+    const di = LABEL_IDX[name];
+    out.push({name, lv: m[2].trim(), di: di === undefined ? 3 : di});
+  }
+  return out.sort((a, b) => a.di - b.di);
+}
+
+function setupRail(){
+  $('#rail-prev').onclick = () => focusPlate(curIdx - 1);
+  $('#rail-next').onclick = () => focusPlate(curIdx + 1);
+  $('#rail-go').onclick = () => {
+    const el = $('#lib').children[curIdx];
+    if(el && libCache[curIdx]) playFromLibrary(libCache[curIdx], el);
+  };
+  addEventListener('keydown', e => {
+    if(!$('#s-load').classList.contains('on')) return;
+    if(typing()) return;
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); focusPlate(curIdx - 1); }
+    else if(e.key === 'ArrowRight'){ e.preventDefault(); focusPlate(curIdx + 1); }
+    else if(e.key === 'Enter'){
+      e.preventDefault();
+      const el = $('#lib').children[curIdx];
+      if(el && libCache[curIdx]) playFromLibrary(libCache[curIdx], el);
+    }
+  });
+}
+/* 折り返さずに収まるまで文字を小さくする */
+function fitText(el, maxPx, minPx, vertical){
+  if(!el) return;
+  el.style.fontSize = maxPx + 'px';
+  const over = () => vertical
+    ? el.scrollHeight > el.clientHeight + 1
+    : el.scrollWidth  > el.clientWidth  + 1;
+  if(!el.clientWidth && !el.clientHeight) return;      // 非表示中は測れない
+  let size = maxPx;
+  while(size > minPx && over()){
+    size -= .5;
+    el.style.fontSize = size + 'px';
+  }
+  // どうしても入らない長さなら、最後は末尾を省略記号で逃がす
+  if(!vertical && over()) el.style.textOverflow = 'ellipsis';
+}
+
+const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function playFromLibrary(s, el){
+  if(el) el.classList.add('busy');
+  LOAD.show(s.title, '譜面をダウンロードしています');
+  try{
+    const tjaBuf = await driveGet(s.tjaId, '譜面をダウンロードしています');
+    let audBuf = null;
+    if(s.audioId) audBuf = await driveGet(s.audioId, '音源をダウンロードしています');
+
+    LOAD.sub('音源を準備しています'); LOAD.bar('wait');
+    await new Promise(r => setTimeout(r, 30));       // 画面を更新させてから復号に入る
+    await useSong(decodeText(tjaBuf), audBuf, s.audioName);
+  }catch(err){
+    alert('ダウンロードに失敗しました: ' + err.message);
+  }finally{
+    LOAD.hide();
+    if(el) el.classList.remove('busy');
+  }
+}
+
+let upFiles = {tja:null, audio:null};
+const RE_AUDIO = /\.(ogg|mp3|wav|m4a|aac|flac)$/i;
+
+async function takeUploadFiles(files){
+  for(const f of files){
+    if(/\.tja$/i.test(f.name)) upFiles.tja = f;
+    else if(RE_AUDIO.test(f.name)) upFiles.audio = f;
+  }
+  renderUpList();
+
+  // TJA の TITLE を曲名欄の下書きとして入れておく（手で直せる）
+  const el = $('#up-title');
+  if(upFiles.tja && !el.value.trim()){
+    try{
+      const h = parseTJA(decodeText(await upFiles.tja.arrayBuffer())).headers;
+      if(h.TITLE) el.value = h.TITLE;
+    }catch(e){}
+  }
+}
+
+function renderUpList(){
+  const ul = $('#up-list'); ul.innerHTML = '';
+  const add = (f, kind, cls) => {
+    const li = document.createElement('li');
+    li.className = cls;
+    li.innerHTML = `<span>${esc(f.name)}<span style="color:var(--mute)"> ・ ${(f.size / 1048576).toFixed(1)}MB</span></span>
+      <span class="tag">${kind}</span>`;
+    ul.appendChild(li);
+  };
+  if(upFiles.tja) add(upFiles.tja, '譜面', 'tja');
+  if(upFiles.audio) add(upFiles.audio, '音源', '');
+  if(upFiles.tja && !upFiles.audio){
+    const li = document.createElement('li');
+    li.className = 'warn';
+    li.textContent = '音源なし（譜面だけで演奏されます）';
+    ul.appendChild(li);
+  }
+}
+
+async function uploadSong(){
+  const msg = $('#up-msg'), tjaF = upFiles.tja, audF = upFiles.audio;
+  if(!CLOUD.gas){ msg.textContent = 'CLOUD.gas が未設定です。'; return; }
+  if(!tjaF){ msg.textContent = 'TJAファイルを選んでください。'; return; }
+  const pass = $('#up-pass').value.trim();
+  if(!pass){ msg.textContent = '合言葉を入れてください。'; return; }
+
+  $('#up-go').disabled = true;
+  msg.textContent = '読み込み中…';
+  LOAD.show('アップロード中', 'ファイルを読み込んでいます');
+  try{
+    const tjaBuf = await tjaF.arrayBuffer();
+    const text = decodeText(tjaBuf);
+    const parsed = parseTJA(text);
+    if(!parsed.courses.length) throw new Error('譜面が入っていません');
+
+    msg.textContent = '送信中…（音源が大きいと少し時間がかかります）';
+    LOAD.sub('Google ドライブへ送信しています' + (audF ? '\n音源が大きいと少し時間がかかります' : ''));
+    const payload = {
+      action:'upload', pass,
+      title: $('#up-title').value.trim() || parsed.headers.TITLE || tjaF.name.replace(/\.tja$/i, ''),
+      subtitle: (parsed.headers.SUBTITLE || '').replace(/^--?/, ''),
+      courses: parsed.courses.map(c => courseLabel(c) + '★' + (c.level || '?')).join(' / '),
+      uploader: $('#up-who').value.trim() || 'ななし',
+      tja: {name: tjaF.name, data: b64(tjaBuf)},
+      audio: audF ? {name: audF.name, mime: audF.type || 'audio/ogg', data: b64(await audF.arrayBuffer())} : null
+    };
+    const res = await gasPost(payload);
+    if(!res.ok) throw new Error(res.error || '不明なエラー');
+
+    msg.textContent = '「' + (res.song ? res.song.title : tjaF.name) + '」を追加しました。';
+    upFiles = {tja:null, audio:null};
+    $('#up-files').value = ''; $('#up-title').value = ''; renderUpList();
+    LOAD.sub('一覧を更新しています');
+    await loadLibrary(true);
+  }catch(err){
+    msg.textContent = '失敗: ' + err.message;
+  }finally{
+    LOAD.hide();
+    $('#up-go').disabled = false;
+  }
+}
+
+function setupUploadBox(){
+  const box = $('#up-drop'), input = $('#up-files');
+  $('#up-pick').onclick = () => input.click();
+  input.onchange = e => takeUploadFiles([...e.target.files]);
+  ['dragenter','dragover'].forEach(ev => box.addEventListener(ev, e => {
+    e.preventDefault(); box.classList.add('hot');
+  }));
+  ['dragleave','drop'].forEach(ev => box.addEventListener(ev, e => {
+    e.preventDefault(); box.classList.remove('hot');
+  }));
+  box.addEventListener('drop', e => {
+    const fs = [...(e.dataTransfer.files || [])];
+    if(fs.length) takeUploadFiles(fs);
+  });
+}
+
+function setupLibraryUI(){
+  $('#lib-reload').onclick = loadLibrary;
+  $('#up-go').onclick = uploadSong;
+  setupUploadBox();
+  setupRail();
+  loadLibrary();
+}
+
+/* =========================================================
+   7. 起動
+========================================================= */
+setupLibraryUI();
+bindOpts();
+
+let fitTimer = 0;
+addEventListener('resize', () => {
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(() => {
+    [...$('#lib').children].forEach(p => {
+      const t = p.querySelector('.pt');
+      if(t) fitText(t, 17, 7.5, true);
+    });
+    if(libCache.length) focusPlate(curIdx, true);
+    if($('#s-select').classList.contains('on')){
+      fitText($('#title'), 21, 12);
+      fitText($('#subtitle'), 11.5, 8.5);
+      [...$('#courses').children].forEach(d => fitText(d.querySelector('.dh'), 16, 9));
+    }
+  }, 160);
+});
+if(!Store.ok) $('#cfg-note').textContent =
+  'このブラウザでは設定を保存できません（プライベートモードなど）。今回だけ有効です。';
+</script>
+</body>
+</html>
