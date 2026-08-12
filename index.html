@@ -1487,6 +1487,11 @@ function inGogo(t){ return G.course.gogos.some(g => t >= g.s && t < g.e); }
  *     内部解像度をもう一段下げる。一度入ったら戻さない（ちらつき防止）
  */
 let VS = 2, lowfx = false;
+
+/* 使い回す固定グラデーション（生成が重いのでキャッシュする） */
+const GR = {};
+const grad = (key, mk) => GR[key] || (GR[key] = mk());
+
 function fitCanvas(){
   const r = cv.getBoundingClientRect();
   if(!(r.width > 0)) return;
