@@ -404,10 +404,46 @@ body.touch .padlabel{display:grid}
 body.playing{overflow:hidden;overscroll-behavior:none;touch-action:none;
   -webkit-user-select:none;user-select:none}
 body.playing #s-game{touch-action:none}
-#s-game:fullscreen{background:var(--sumi);display:flex;flex-direction:column;
-  justify-content:center;height:100%;padding:0 10px}
-#s-game:fullscreen #cv{max-height:54vh}
-#s-game:fullscreen #pads button{padding:34px 0}
+
+/* 演奏中（タッチ端末）は画面いっぱいを使い、太鼓を大きく置く */
+body.touch.playing #s-game.on{
+  position:fixed;left:0;right:0;top:0;
+  height:100vh;height:100dvh;z-index:60;
+  display:flex;flex-direction:column;align-items:stretch;
+  background:var(--sumi);animation:none;
+  padding:calc(env(safe-area-inset-top,0px) + 42px)
+          calc(env(safe-area-inset-right,0px) + 10px)
+          calc(env(safe-area-inset-bottom,0px) + 10px)
+          calc(env(safe-area-inset-left,0px) + 10px);
+}
+/* 中断・全画面は上端へ逃がす（叩く手が触れないように） */
+body.touch.playing .gamebar{
+  position:absolute;margin:0;
+  left:calc(env(safe-area-inset-left,0px) + 12px);
+  right:calc(env(safe-area-inset-right,0px) + 12px);
+  top:calc(env(safe-area-inset-top,0px) + 7px);
+}
+body.touch.playing .gamebar .mini{padding:8px 15px;font-size:11px}
+body.touch.playing #g-title{
+  min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10.5px;
+}
+body.touch.playing #cv{
+  flex:0 0 auto;width:100%;max-width:940px;max-height:34vh;object-fit:contain;
+  margin-left:auto;margin-right:auto;
+}
+body.touch.playing #pads{
+  flex:0 1 auto;width:100%;max-width:940px;
+  height:clamp(170px,44vh,430px);min-height:120px;
+  grid-template-rows:1fr;margin:auto auto 0;padding:9px;
+  border-radius:96px/86px;
+}
+body.touch.playing #pads button{padding:0;font-size:clamp(15px,4.4vw,26px)}
+body.touch.playing #pads .ka:first-child{border-radius:88px 0 0 88px}
+body.touch.playing #pads .ka:last-child{border-radius:0 88px 88px 0}
+body.touch.playing .padlabel{
+  flex:0 0 auto;width:100%;max-width:940px;margin:7px auto 0;font-size:11px;
+}
+#s-game:fullscreen{background:var(--sumi)}
 
 /* ---- 結果 ---- */
 .result{max-width:500px;margin:0 auto}
@@ -543,7 +579,7 @@ body.playing #s-game{touch-action:none}
     </div>
     <p class="note">
       PC: <b>F / J</b> = 面（ドン）, <b>D / K</b> = 縁（カッ）, <b>Esc</b> = 中断。<br>
-      スマホ・タブレット: 画面下の4つのボタン（両端が縁＝カッ、内側2つが面＝ドン）。譜面の内側/外側を直接タップしても叩けます。横向き＋全画面が遊びやすいです。
+      スマホ・タブレット: 演奏中は画面いっぱいの太鼓（両端が縁＝カッ、内側2つが面＝ドン）。太鼓のまわりの余白も叩き判定に入ります。譜面の内側/外側を直接タップしても叩けます。
     </p>
     <p class="note" id="cfg-note">設定はこの端末に保存され、次回もそのまま使えます。</p>
     <div class="rbtns" style="justify-content:flex-start;margin-top:18px">
@@ -1750,19 +1786,30 @@ const padsEl = $('#pads');
 const padButtons = [...padsEl.querySelectorAll('button')];
 
 /* 判定用の境界は都度計測せずキャッシュする（連打中の計測落ちを防ぐ） */
-let padEdges = null;
+let padEdges = null, padW = -1, barBoxes = [];
 function measurePads(){
+  padW = padsEl.clientWidth;
   padEdges = padButtons.map(b => {
     const r = b.getBoundingClientRect();
     return {left:r.left, right:r.right, el:b, don: b.dataset.k === 'don'};
+  });
+  /* 叩き判定から除くのは、中断・全画面のボタンそのものだけにする。
+     帯全体を除いていた頃は、その上に指が落ちるとまるごと無反応だった。 */
+  barBoxes = [$('#fs'), $('#stop')].filter(Boolean).map(b => {
+    const r = b.getBoundingClientRect();
+    return {left:r.left - 8, right:r.right + 8, top:r.top - 8, bottom:r.bottom + 8};
   });
 }
 addEventListener('resize', () => { padEdges = null; });
 addEventListener('orientationchange', () => { padEdges = null; });
 addEventListener('scroll', () => { padEdges = null; }, {passive:true});
+document.addEventListener('fullscreenchange', () => { padEdges = null; });
+document.addEventListener('visibilitychange', () => { padEdges = null; });
 
 function padAt(clientX){
-  if(!padEdges || !padEdges.length || padEdges[0].right === 0) measurePads();
+  /* 幅が変わっていたら測り直す。取りこぼしの原因になる古い値を残さない */
+  if(!padEdges || !padEdges.length || padEdges[0].right === 0 ||
+     padsEl.clientWidth !== padW) measurePads();
   for(const p of padEdges){
     if(clientX >= p.left && clientX < p.right) return p;
   }
@@ -1784,10 +1831,12 @@ function padAt(clientX){
  * 下部に触れているだけで以降の指が全部無効になってしまう。
  */
 function inGamebar(clientX, clientY){
-  const bar = $('#s-game').querySelector('.gamebar');
-  if(!bar) return false;
-  const r = bar.getBoundingClientRect();
-  return clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right;
+  if(!padEdges) measurePads();
+  for(const r of barBoxes){
+    if(clientX >= r.left && clientX <= r.right &&
+       clientY >= r.top && clientY <= r.bottom) return true;
+  }
+  return false;
 }
 
 function gameInput(clientX, clientY, evTime){
@@ -1795,17 +1844,16 @@ function gameInput(clientX, clientY, evTime){
   if(inGamebar(clientX, clientY)) return false;
 
   const cvR = cv.getBoundingClientRect();
+  /* 譜面より下（パッドの周りの余白もふくむ）は、すべて太鼓として拾う */
   if(clientY >= cvR.bottom - 2){
     const p = padAt(clientX);
     if(p){ tap(p.don, p.el, evTime); return true; }
     return false;
   }
-  if(clientY >= cvR.top){
-    const x = (clientX - cvR.left) / cvR.width;
-    tap(x > .25 && x < .75, null, evTime);
-    return true;
-  }
-  return false;
+  /* 譜面とその上。内側なら面、外側なら縁 */
+  const x = (clientX - cvR.left) / cvR.width;
+  tap(x > .25 && x < .75, null, evTime);
+  return true;
 }
 
 /*
