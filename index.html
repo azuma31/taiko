@@ -1254,7 +1254,7 @@ function startGame(idx){
   G.course = c;
   c.notes.forEach(n => { n.done = false; n.count = 0; n.hitAt = 0; n.lastHitAt = 0; n.lastAuto = 0; });
   Object.assign(G, {score:0, combo:0, maxCombo:0, good:0, ok:0, bad:0, rollHits:0,
-    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitColor:{}, liveFrom:0, running:true});
+    gauge:0, effects:[], judgeTxt:null, lastBig:null, rollShow:null, lastHitColor:{}, liveFrom:0, drawTo:0, running:true});
   G.gaugeUp = 100 / Math.max(c.hitCount * .82, 1);
   G.base = c.scoreInit || 300;
   G.diff = c.scoreDiff || 100;
@@ -1263,6 +1263,20 @@ function startGame(idx){
   G.diffIdx = di === undefined ? 3 : di;
   const w = JUDGE_TABLE[G.diffIdx], k = CFG.loose ? 1.4 : 1;
   JUDGE = {GOOD:w.GOOD * k, OK:w.OK * k, BAD:w.BAD * k};
+
+  /*
+   * 描画の先読み範囲: 最も遅い音符の流速から「画面右端に現れるまでの秒数」を
+   * 逆算しておき、それより未来の音符は描画ループで一切触れない。
+   * 逆走(負のSCROLL)がある譜面では安全のため無効化して全走査に戻す。
+   */
+  let minVel = Infinity;
+  for(const n of c.notes){
+    const v = (n.bpm / 60) * n.scroll * PX_BEAT;
+    if(!(v > 0)){ minVel = 0; break; }
+    if(v < minVel) minVel = v;
+  }
+  G.laBase = minVel > 0 ? 1300 / minVel : 1e9;   // 秒×speed（speedで割って使う）
+  BK.s = 0;                                      // 曲・難易度が変わるので背景を焼き直す
 
   const first = c.notes.length ? c.notes[0].time : 0;
   const lead = Math.max(2.2, -Math.min(first, 0) + 1.2);
@@ -1288,7 +1302,16 @@ function startGame(idx){
   requestAnimationFrame(() => { measurePads(); loop(); });
 }
 
-const now = () => AC.currentTime - G.startAt + CFG.offset;
+/*
+ * 端末の音声出力遅延を差し引く。iOS はスピーカーでも数十ms、
+ * Bluetooth イヤホンだと100msを超えることがあり、プレイヤーは
+ * 「聞こえた音」に合わせて叩くので、これを引かないと全打が
+ * 一律に遅れて判定される。単符は不可窓(±108ms)に収まって
+ * 気づきにくいが、連符では窓が実質潰れて抜けまくる。
+ * 描画も同じ時計を使うので、音符の到達も聞こえる音に揃う。
+ */
+const outLat = () => clamp((AC.outputLatency || 0) + (AC.baseLatency || 0), 0, .5);
+const now = () => AC.currentTime - G.startAt - outLat() + CFG.offset;
 
 function stopAudio(){
   if(G.src){ try{ G.src.stop(); }catch(e){} G.src = null; }
@@ -1454,117 +1477,198 @@ function update(t){
 function xOf(n, t){ return JUDGE_X + (n.time - t) * (n.bpm / 60) * n.scroll * PX_BEAT * CFG.speed; }
 function inGogo(t){ return G.course.gogos.some(g => t >= g.s && t < g.e); }
 
-function render(t){
-  cx.clearRect(0, 0, W, H);
-  drawTopBar(t);
-  drawLane(t);
-  drawFoot();
+/*
+ * 低スペック端末対応の描画方針:
+ *  1) 内部解像度を実際の表示サイズに合わせる（固定2560x600で描かない）
+ *  2) 毎フレーム同じものを描いていた背景・左パネルは一度だけ
+ *     オフスクリーンに焼き込み、以後は drawImage 一発で貼る
+ *  3) それでもフレーム落ちが続く端末は自動で軽量表示(lowfx)に切り替え、
+ *     装飾（音符の影・ハイライト、ゴーゴーの帯、脈動）を間引き、
+ *     内部解像度をもう一段下げる。一度入ったら戻さない（ちらつき防止）
+ */
+let VS = 2, lowfx = false;
+function fitCanvas(){
+  const r = cv.getBoundingClientRect();
+  if(!(r.width > 0)) return;
+  const dpr = Math.min(devicePixelRatio || 1, lowfx ? 1.25 : 2);
+  const s = clamp(r.width * dpr / W, .5, 2);
+  if(Math.abs(s - VS) < .02 && cv.width && cv.width !== 2560) return;
+  VS = s;
+  cv.width = Math.round(W * s); cv.height = Math.round(H * s);
+  cx.setTransform(s, 0, 0, s, 0, 0);
+  BK.s = 0;                                    // 背景は焼き直し
 }
 
-/* ---- 上帯：難易度プレートと魂ゲージ ---- */
-/*
- * グラデーションは生成が重く、毎フレーム作り直すとスマホで
- * それだけでフレームが落ちる。形が固定のものは全部使い回す。
- */
-const GR = {};
-const grad = (key, mk) => GR[key] || (GR[key] = mk());
+const BK = {s:0, base:[null, null], panel:null};
 
-function drawTopBar(t){
-  cx.fillStyle = grad('top', () => {
-    const g = cx.createLinearGradient(0, 0, 0, BAR_H);
-    g.addColorStop(0, '#f3e8d0'); g.addColorStop(1, '#ddcda9'); return g;
-  });
-  cx.fillRect(0, 0, W, BAR_H);
-  cx.fillStyle = 'rgba(90,66,32,.35)'; cx.fillRect(0, BAR_H - 2, W, 2);
+function mkOff(w, h){
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * VS));
+  c.height = Math.max(1, Math.round(h * VS));
+  const b = c.getContext('2d');
+  b.setTransform(VS, 0, 0, VS, 0, 0);
+  return [c, b];
+}
 
-  // 難易度プレート
-  const c = G.course;
+/* 背景一式（上帯・プレート・ゲージの受け・レーン・判定枠・下帯・曲名） */
+function mkBase(gogo){
+  const [c, b] = mkOff(W, H);
+  let g = b.createLinearGradient(0, 0, 0, BAR_H);
+  g.addColorStop(0, '#f3e8d0'); g.addColorStop(1, '#ddcda9');
+  b.fillStyle = g; b.fillRect(0, 0, W, BAR_H);
+  b.fillStyle = 'rgba(90,66,32,.35)'; b.fillRect(0, BAR_H - 2, W, 2);
+
+  const cs = G.course;
   const col = ['#3f9c52','#c98a1e','#cf4030','#8f3fae','#8f3fae'][G.diffIdx] || '#8f3fae';
-  cx.fillStyle = '#141926'; cx.fillRect(0, 0, PANEL_W, BAR_H);
-  const pg = grad('plate' + col, () => {
-    const g = cx.createLinearGradient(0, 0, 10, 0);
-    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); return g;
-  });
-  cx.fillStyle = col; cx.fillRect(0, 0, 6, BAR_H);
-  cx.fillStyle = pg; cx.globalAlpha = .3; cx.fillRect(0, 0, 60, BAR_H); cx.globalAlpha = 1;
-
-  cx.textAlign = 'left'; cx.fillStyle = '#f4efe4'; cx.font = '800 19px system-ui';
-  cx.fillText(courseLabel(c), 26, 26);
-  const lv = Math.min(c.level || 1, 10);
-  cx.font = '700 12px system-ui';
+  b.fillStyle = '#141926'; b.fillRect(0, 0, PANEL_W, BAR_H);
+  b.fillStyle = col; b.fillRect(0, 0, 6, BAR_H);
+  g = b.createLinearGradient(0, 0, 10, 0);
+  g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+  b.fillStyle = g; b.globalAlpha = .3; b.fillRect(0, 0, 60, BAR_H); b.globalAlpha = 1;
+  b.textAlign = 'left'; b.fillStyle = '#f4efe4'; b.font = '800 19px system-ui';
+  b.fillText(courseLabel(cs), 26, 26);
+  const lv = Math.min(cs.level || 1, 10);
+  b.font = '700 12px system-ui';
   for(let i = 0; i < 10; i++){
-    cx.fillStyle = i < lv ? '#e8b93c' : 'rgba(244,239,228,.14)';
-    cx.fillText('★', 26 + i * 14, 45);
+    b.fillStyle = i < lv ? '#e8b93c' : 'rgba(244,239,228,.14)';
+    b.fillText('★', 26 + i * 14, 45);
   }
 
-  drawGauge(PANEL_W + 26, 12, W - PANEL_W - 132, 34);
+  // ゲージの受け（全消灯）と合格ライン
+  const gx = GA.x, gy = GA.y, gw = GA.w, gh = GA.h;
+  b.fillStyle = '#241c10'; b.fillRect(gx - 5, gy - 5, gw + 10, gh + 10);
+  b.fillStyle = 'rgba(0,0,0,.5)'; b.fillRect(gx - 2, gy - 2, gw + 4, gh + 4);
+  for(let i = 0; i < GA.cells; i++){
+    b.fillStyle = i / GA.cells >= GA.norma ? '#3c331c' : '#3a1e19';
+    b.fillRect(gx + i * GA.cw + .7, gy, GA.cw - 1.4, gh);
+  }
+  b.fillStyle = '#f4efe4'; b.fillRect(gx + gw * GA.norma - 1, gy - 7, 2, gh + 14);
+
+  // レーン
+  g = b.createLinearGradient(0, LANE_Y, 0, LANE_Y + LANE_H);
+  if(gogo){
+    g.addColorStop(0, '#6d160f'); g.addColorStop(.16, '#a82518');
+    g.addColorStop(.5, '#cf3a26'); g.addColorStop(.84, '#a82518'); g.addColorStop(1, '#5f120c');
+  }else{
+    g.addColorStop(0, '#151a26'); g.addColorStop(.16, '#232b3e');
+    g.addColorStop(.5, '#2c3548'); g.addColorStop(.84, '#232b3e'); g.addColorStop(1, '#12161f');
+  }
+  b.fillStyle = g; b.fillRect(0, LANE_Y, W, LANE_H);
+  b.fillStyle = 'rgba(0,0,0,.55)';
+  b.fillRect(0, LANE_Y, W, 2); b.fillRect(0, LANE_Y + LANE_H - 2, W, 2);
+  b.fillStyle = 'rgba(255,255,255,.07)';
+  b.fillRect(0, LANE_Y + 2, W, 1); b.fillRect(0, LANE_Y + LANE_H - 3, W, 1);
+
+  // 判定枠
+  b.fillStyle = 'rgba(0,0,0,.22)'; b.beginPath(); b.arc(JUDGE_X, CY, 38, 0, 7); b.fill();
+  b.strokeStyle = 'rgba(255,255,255,.35)'; b.lineWidth = 3;
+  b.beginPath(); b.arc(JUDGE_X, CY, 38, 0, 7); b.stroke();
+  b.strokeStyle = 'rgba(255,255,255,.14)'; b.lineWidth = 2;
+  b.beginPath(); b.arc(JUDGE_X, CY, 52, 0, 7); b.stroke();
+
+  // 下帯と曲名
+  const y0 = LANE_Y + LANE_H;
+  g = b.createLinearGradient(0, y0, 0, H);
+  g.addColorStop(0, '#e9dcc0'); g.addColorStop(1, '#cdbb96');
+  b.fillStyle = g; b.fillRect(0, y0, W, H - y0);
+  b.fillStyle = 'rgba(90,66,32,.3)'; b.fillRect(0, y0, W, 2);
+  b.textAlign = 'left'; b.fillStyle = '#33261a'; b.font = '800 18px system-ui';
+  b.fillText(song.headers.TITLE || '', PANEL_W + 26, y0 + 34);
+  const sub = (song.headers.SUBTITLE || '').replace(/^--?/, '');
+  if(sub){
+    b.fillStyle = 'rgba(51,38,26,.55)'; b.font = '600 11.5px system-ui';
+    b.fillText(sub, PANEL_W + 26, y0 + 56);
+  }
+  return c;
 }
 
-function drawGauge(x, y, w, h){
-  const cells = 50, cw = w / cells, norma = .8;
-  cx.fillStyle = '#241c10'; cx.fillRect(x - 5, y - 5, w + 10, h + 10);
-  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(x - 2, y - 2, w + 4, h + 4);
-  const gGold = grad('gaugeG' + y, () => {
+/* 左パネル（音符を隠す層。SCOREラベルまで含めて焼く） */
+function mkPanel(){
+  const ph = H - LANE_Y;
+  const [c, b] = mkOff(PANEL_W, ph);
+  b.fillStyle = '#141926'; b.fillRect(0, 0, PANEL_W, ph);
+  const g = b.createLinearGradient(PANEL_W - 26, 0, PANEL_W, 0);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+  b.fillStyle = g; b.fillRect(PANEL_W - 26, 0, 26, LANE_H);
+  b.fillStyle = 'rgba(232,185,60,.4)'; b.fillRect(PANEL_W - 1, 0, 1, LANE_H);
+  b.fillStyle = 'rgba(232,185,60,.3)'; b.fillRect(PANEL_W - 1, LANE_H, 1, ph - LANE_H);
+  b.textAlign = 'right'; b.fillStyle = '#6f7d95'; b.font = '700 10px system-ui';
+  b.fillText('S C O R E', PANEL_W - 18, LANE_H + 24);
+  return c;
+}
+
+function bake(){
+  BK.base = [mkBase(false), mkBase(true)];
+  BK.panel = mkPanel();
+  BK.s = VS;
+}
+
+const GA = (() => {
+  const x = PANEL_W + 26, y = 12, w = W - PANEL_W - 132, h = 34, cells = 50;
+  return {x, y, w, h, cells, cw: w / cells, norma: .8};
+})();
+
+function render(t){
+  const gogo = inGogo(t);
+  if(BK.s !== VS) bake();
+  cx.drawImage(BK.base[gogo ? 1 : 0], 0, 0, W, H);
+  drawGaugeDyn();
+  drawLane(t, gogo);
+  cx.drawImage(BK.panel, 0, LANE_Y, PANEL_W, H - LANE_Y);
+  drawDrum(122, CY);
+  cx.textAlign = 'right'; cx.fillStyle = '#f4efe4'; cx.font = '800 33px system-ui';
+  cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, LANE_Y + LANE_H + 60);
+  if(t < 0){
+    cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,255,255,.7)';
+    cx.font = '700 22px system-ui';
+    cx.fillText('― ' + Math.ceil(-t) + ' ―', (PANEL_W + W) / 2, CY + 8);
+  }
+}
+
+/* ---- ゲージの点灯と魂（動く部分だけ） ---- */
+function drawGaugeDyn(){
+  const {x, y, w, h, cells, cw, norma} = GA;
+  const gGold = grad('gaugeG', () => {
     const g = cx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0,'#fff2c4'); g.addColorStop(.42,'#e8b93c'); g.addColorStop(1,'#a87d10'); return g;
   });
-  const gRed = grad('gaugeR' + y, () => {
+  const gRed = grad('gaugeR', () => {
     const g = cx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0,'#ff9b8c'); g.addColorStop(.42,'#d93a2b'); g.addColorStop(1,'#8e2318'); return g;
   });
   for(let i = 0; i < cells; i++){
-    const on = G.gauge / 100 > i / cells, gold = i / cells >= norma;
+    if(!(G.gauge / 100 > i / cells)) break;      // 点灯は左から連続
     const x0 = x + i * cw + .7, w0 = cw - 1.4;
-    if(on){
-      cx.fillStyle = gold ? gGold : gRed;
-      cx.fillRect(x0, y, w0, h);
-      cx.fillStyle = 'rgba(255,255,255,.22)'; cx.fillRect(x0, y, w0, 3);
-    }else{
-      cx.fillStyle = gold ? '#3c331c' : '#3a1e19';
-      cx.fillRect(x0, y, w0, h);
-    }
+    cx.fillStyle = i / cells >= norma ? gGold : gRed;
+    cx.fillRect(x0, y, w0, h);
+    cx.fillStyle = 'rgba(255,255,255,.22)'; cx.fillRect(x0, y, w0, 3);
   }
-  cx.fillStyle = '#f4efe4'; cx.fillRect(x + w * norma - 1, y - 7, 2, h + 14);
 
   // 魂
   const cleared = G.gauge >= 80;
   const mx = x + w + 44, my = y + h / 2;
-  if(cleared){
+  if(cleared && !lowfx){
     const pulse = 30 + Math.sin(performance.now() / 230) * 3.5;
     const rg = cx.createRadialGradient(mx, my, 6, mx, my, pulse);
     rg.addColorStop(0, 'rgba(232,185,60,.5)'); rg.addColorStop(1, 'rgba(232,185,60,0)');
     cx.fillStyle = rg; cx.beginPath(); cx.arc(mx, my, pulse, 0, 7); cx.fill();
   }
-  const sg = grad('soul' + (cleared ? 1 : 0) + my, () => {
+  cx.fillStyle = grad('soul' + (cleared ? 1 : 0), () => {
     const g = cx.createLinearGradient(0, my - 22, 0, my + 22);
     if(cleared){ g.addColorStop(0, '#ffe27a'); g.addColorStop(1, '#c08c14'); }
     else { g.addColorStop(0, '#7b6c50'); g.addColorStop(1, '#4e432f'); }
     return g;
   });
-  cx.fillStyle = sg; cx.beginPath(); cx.arc(mx, my, 21, 0, 7); cx.fill();
+  cx.beginPath(); cx.arc(mx, my, 21, 0, 7); cx.fill();
   cx.fillStyle = cleared ? '#3a2a08' : '#b3a68c';
   cx.font = '800 21px system-ui'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
   cx.fillText('魂', mx, my + 1);
   cx.textBaseline = 'alphabetic';
 }
 
-/* ---- レーン ---- */
-function drawLane(t){
-  const gogo = inGogo(t);
-  cx.fillStyle = grad('lane' + (gogo ? 1 : 0), () => {
-    const g = cx.createLinearGradient(0, LANE_Y, 0, LANE_Y + LANE_H);
-    if(gogo){
-      g.addColorStop(0, '#6d160f'); g.addColorStop(.16, '#a82518');
-      g.addColorStop(.5, '#cf3a26'); g.addColorStop(.84, '#a82518'); g.addColorStop(1, '#5f120c');
-    }else{
-      g.addColorStop(0, '#151a26'); g.addColorStop(.16, '#232b3e');
-      g.addColorStop(.5, '#2c3548'); g.addColorStop(.84, '#232b3e'); g.addColorStop(1, '#12161f');
-    }
-    return g;
-  });
-  cx.fillRect(0, LANE_Y, W, LANE_H);
-
-  if(gogo){                                   // ゴーゴーの流れる帯
+/* ---- レーンの動く部分（帯・小節線・光・連打・音符・判定文字） ---- */
+function drawLane(t, gogo){
+  if(gogo && !lowfx){                          // ゴーゴーの流れる帯
     const k = (performance.now() / 26) % 60;
     cx.save(); cx.beginPath(); cx.rect(0, LANE_Y, W, LANE_H); cx.clip();
     cx.fillStyle = 'rgba(255,200,90,.10)';
@@ -1576,25 +1680,14 @@ function drawLane(t){
     }
     cx.restore();
   }
-  cx.fillStyle = 'rgba(0,0,0,.55)';
-  cx.fillRect(0, LANE_Y, W, 2); cx.fillRect(0, LANE_Y + LANE_H - 2, W, 2);
-  cx.fillStyle = 'rgba(255,255,255,.07)';
-  cx.fillRect(0, LANE_Y + 2, W, 1); cx.fillRect(0, LANE_Y + LANE_H - 3, W, 1);
 
   // 小節線
   cx.strokeStyle = 'rgba(255,255,255,.22)'; cx.lineWidth = 2;
-  for(const b of G.course.bars){
-    const x = xOf(b, t);
+  for(const bl of G.course.bars){
+    const x = xOf(bl, t);
     if(x < PANEL_W - 20 || x > W + 20) continue;
     cx.beginPath(); cx.moveTo(x, LANE_Y + 8); cx.lineTo(x, LANE_Y + LANE_H - 8); cx.stroke();
   }
-
-  // 判定枠
-  cx.fillStyle = 'rgba(0,0,0,.22)'; cx.beginPath(); cx.arc(JUDGE_X, CY, 38, 0, 7); cx.fill();
-  cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.lineWidth = 3;
-  cx.beginPath(); cx.arc(JUDGE_X, CY, 38, 0, 7); cx.stroke();
-  cx.strokeStyle = 'rgba(255,255,255,.14)'; cx.lineWidth = 2;
-  cx.beginPath(); cx.arc(JUDGE_X, CY, 52, 0, 7); cx.stroke();
 
   // 命中の光
   for(let i = G.effects.length - 1; i >= 0; i--){
@@ -1608,8 +1701,14 @@ function drawLane(t){
 
   const ns = G.course.notes;
 
+  /* 画面右端より先の音符の位置（先読み範囲の終端）。時刻順なので前進するだけ */
+  const la = G.laBase < 1e9 ? G.laBase / CFG.speed : 1e9;
+  if(la < 1e9){
+    while(G.drawTo < ns.length && ns[G.drawTo].time <= t + la) G.drawTo++;
+  }else G.drawTo = ns.length;
+
   // 連打
-  for(let i = G.liveFrom; i < ns.length; i++){
+  for(let i = G.liveFrom; i < G.drawTo; i++){
     const n = ns[i];
     if(n.type < 5) continue;
     const x1 = xOf(n, t), x2 = xOf({time:n.end, bpm:n.bpm, scroll:n.scroll}, t);
@@ -1636,23 +1735,27 @@ function drawLane(t){
   }
 
   // 音符（先の音符が上に重なるよう後ろから描く。liveFromより前は全部done）
-  for(let i = ns.length - 1; i >= G.liveFrom; i--){
+  for(let i = G.drawTo - 1; i >= G.liveFrom; i--){
     const n = ns[i];
     if(n.type >= 5 || n.done) continue;
     const x = xOf(n, t);
     if(x < PANEL_W - 60 || x > W + 60) continue;
     const big = n.type === T.DONB || n.type === T.KAB, r = big ? 44 : 30;
     const don = n.type === T.DON || n.type === T.DONB;
-    cx.fillStyle = 'rgba(0,0,0,.3)'; cx.beginPath(); cx.arc(x + 2, CY + 3, r, 0, 7); cx.fill();
+    if(!lowfx){
+      cx.fillStyle = 'rgba(0,0,0,.3)'; cx.beginPath(); cx.arc(x + 2, CY + 3, r, 0, 7); cx.fill();
+    }
     cx.fillStyle = '#fdfdfd';        cx.beginPath(); cx.arc(x, CY, r, 0, 7); cx.fill();
     cx.fillStyle = don ? '#c8352a' : '#2a7fc0';
     cx.beginPath(); cx.arc(x, CY, r - 5, 0, 7); cx.fill();
-    cx.fillStyle = grad('note' + (don ? 'd' : 'k') + r, () => {
-      const g = cx.createLinearGradient(0, CY - r, 0, CY + r);
-      g.addColorStop(0, don ? '#f26a55' : '#5cb2ea'); g.addColorStop(.55, 'rgba(255,255,255,0)');
-      return g;
-    });
-    cx.beginPath(); cx.arc(x, CY, r - 5, 0, 7); cx.fill();
+    if(!lowfx){
+      cx.fillStyle = grad('note' + (don ? 'd' : 'k') + r, () => {
+        const g = cx.createLinearGradient(0, CY - r, 0, CY + r);
+        g.addColorStop(0, don ? '#f26a55' : '#5cb2ea'); g.addColorStop(.55, 'rgba(255,255,255,0)');
+        return g;
+      });
+      cx.beginPath(); cx.arc(x, CY, r - 5, 0, 7); cx.fill();
+    }
   }
 
   // 判定文字
@@ -1671,22 +1774,6 @@ function drawLane(t){
   }
 
   drawRollCount(t);
-
-  // 左パネル（音符を隠す）
-  cx.fillStyle = '#141926'; cx.fillRect(0, LANE_Y, PANEL_W, LANE_H);
-  cx.fillStyle = grad('edge', () => {
-    const g = cx.createLinearGradient(PANEL_W - 26, 0, PANEL_W, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.55)'); return g;
-  });
-  cx.fillRect(PANEL_W - 26, LANE_Y, 26, LANE_H);
-  cx.fillStyle = 'rgba(232,185,60,.4)'; cx.fillRect(PANEL_W - 1, LANE_Y, 1, LANE_H);
-  drawDrum(122, CY);
-
-  if(t < 0){
-    cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,255,255,.7)';
-    cx.font = '700 22px system-ui';
-    cx.fillText('― ' + Math.ceil(-t) + ' ―', (PANEL_W + W) / 2, CY + 8);
-  }
 }
 
 /* ---- 連打カウンター ---- */
@@ -1750,7 +1837,7 @@ function drawDrum(x, y){
     const s = String(G.combo);
     const size = s.length <= 2 ? 42 : s.length === 3 ? 34 : 27;
     const hot = G.combo >= 100;
-    if(hot){
+    if(hot && !lowfx){
       cx.fillStyle = 'rgba(240,192,75,.22)';
       cx.beginPath(); cx.arc(x, y, 48 + Math.sin(performance.now() / 160) * 3, 0, 7); cx.fill();
     }
@@ -1765,35 +1852,21 @@ function drawDrum(x, y){
   }
 }
 
-/* ---- 下帯：スコアと曲名 ---- */
-function drawFoot(){
-  const y0 = LANE_Y + LANE_H;
-  cx.fillStyle = grad('foot', () => {
-    const g = cx.createLinearGradient(0, y0, 0, H);
-    g.addColorStop(0, '#e9dcc0'); g.addColorStop(1, '#cdbb96'); return g;
-  });
-  cx.fillRect(0, y0, W, H - y0);
-  cx.fillStyle = 'rgba(90,66,32,.3)'; cx.fillRect(0, y0, W, 2);
-  cx.fillStyle = '#141926'; cx.fillRect(0, y0, PANEL_W, H - y0);
-  cx.fillStyle = 'rgba(232,185,60,.3)'; cx.fillRect(PANEL_W - 1, y0, 1, H - y0);
-
-  cx.textAlign = 'right';
-  cx.fillStyle = '#6f7d95'; cx.font = '700 10px system-ui';
-  cx.fillText('S C O R E', PANEL_W - 18, y0 + 24);
-  cx.fillStyle = '#f4efe4'; cx.font = '800 33px system-ui';
-  cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, y0 + 60);
-
-  cx.textAlign = 'left'; cx.fillStyle = '#33261a'; cx.font = '800 18px system-ui';
-  cx.fillText(song.headers.TITLE || '', PANEL_W + 26, y0 + 34);
-  const sub = (song.headers.SUBTITLE || '').replace(/^--?/, '');
-  if(sub){
-    cx.fillStyle = 'rgba(51,38,26,.55)'; cx.font = '600 11.5px system-ui';
-    cx.fillText(sub, PANEL_W + 26, y0 + 56);
-  }
-}
-
+/*
+ * フレーム時間を見て、遅い状態が続いたら自動で軽量表示に落とす。
+ * タブ切り替え等の一発の大きな間隔はノイズなので数えない。
+ */
+let lastFrame = 0, slowRun = 0;
 function loop(){
   if(!G.running) return;
+  const p = performance.now();
+  if(lastFrame){
+    const d = p - lastFrame;
+    if(d > 27 && d < 500) slowRun++;
+    else if(d <= 27) slowRun = Math.max(slowRun - 2, 0);
+    if(!lowfx && slowRun > 40){ lowfx = true; fitCanvas(); }
+  }
+  lastFrame = p;
   const t = now();
   update(t); render(t);
   requestAnimationFrame(loop);
@@ -1863,6 +1936,7 @@ const padButtons = [...padsEl.querySelectorAll('button')];
 /* 判定用の境界は都度計測せずキャッシュする（連打中の計測落ちを防ぐ） */
 let padEdges = null, padW = -1, barBoxes = [], cvRect = null;
 function measurePads(){
+  fitCanvas();                 // 表示サイズが変わっていれば内部解像度も追従
   padW = padsEl.clientWidth;
   cvRect = cv.getBoundingClientRect();
   padEdges = padButtons.map((b, i) => {
