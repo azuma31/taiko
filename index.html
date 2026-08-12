@@ -379,7 +379,7 @@ body{
 }
 body.touch #pads{display:grid}
 #pads button{
-  position:relative;padding:34px 0 32px;border:0;font:inherit;font-size:15px;font-weight:800;
+  position:relative;padding:44px 0 42px;border:0;font:inherit;font-size:15px;font-weight:800;
   color:#fff;letter-spacing:.2em;touch-action:none;-webkit-user-select:none;user-select:none;
   -webkit-tap-highlight-color:transparent;transition:filter .06s,transform .06s;
   text-shadow:0 2px 4px rgba(0,0,0,.55);
@@ -401,7 +401,9 @@ body.touch #pads{display:grid}
 body.touch .padlabel{display:grid}
 .gamebar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;
   color:var(--mute);font-size:11px;letter-spacing:.12em}
-body.playing{overflow:hidden;overscroll-behavior:none}
+body.playing{overflow:hidden;overscroll-behavior:none;touch-action:none;
+  -webkit-user-select:none;user-select:none}
+body.playing #s-game{touch-action:none}
 #s-game:fullscreen{background:var(--sumi);display:flex;flex-direction:column;
   justify-content:center;height:100%;padding:0 10px}
 #s-game:fullscreen #cv{max-height:54vh}
@@ -435,6 +437,8 @@ body.playing{overflow:hidden;overscroll-behavior:none}
   .nowplate b{font-size:17px}
   .railnav .go{width:84px;height:84px;font-size:14px}
   .railnav .arw{width:42px;height:42px}
+  #pads button{padding:40px 0 38px}
+  #cv{max-height:38vh;object-fit:contain}
   .diff{width:104px}
   .diff .dh{font-size:14px}
   .brand h1{font-size:16px;letter-spacing:.3em}
@@ -1272,9 +1276,22 @@ function activeRoll(t){
   return null;
 }
 
-function hit(isDon, big){
-  if(!G.running) return;
+/*
+ * 実際に指が触れた/キーを押した時刻で判定する。
+ * 描画で本体が混んでいると処理が数十ミリ秒遅れて呼ばれることがあり、
+ * その遅れをそのまま判定に使うと、特に連符がずれて可・不可になる。
+ */
+function hitTime(evTime){
   const t = now();
+  if(!evTime) return t;
+  const lag = performance.now() - evTime;
+  if(!(lag > 0) || lag > 150) return t;         // 異常値は無視
+  return t - lag / 1000;
+}
+
+function hit(isDon, evTime){
+  if(!G.running) return;
+  const t = hitTime(evTime);
   G.drumHit[isDon ? 'l' : 'r'] = performance.now();
   playHitSound(isDon);       // 音が鳴らせなくても判定は必ず続行する
 
@@ -1334,12 +1351,12 @@ function update(t){
     if(n.type < 5){
       if(CFG.auto && t >= n.time){
         const isDon = n.type === T.DON || n.type === T.DONB;
-        hit(isDon); continue;
+        hit(isDon, 0); continue;
       }
       if(t > n.time + JUDGE.BAD) miss(n);
     }else{
       if(CFG.auto && t >= n.time && t <= n.end){
-        if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true); }
+        if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
       }
       if(t > n.end) n.done = true;
     }
@@ -1688,10 +1705,10 @@ const KEYS = {KeyF:'don', KeyJ:'don', KeyD:'ka', KeyK:'ka', Space:'don'};
 let touchMode = false;
 
 const padTimers = new WeakMap();
-function tap(isDon, el){
+function tap(isDon, el, evTime){
   if(!G.running) return;                       // 演奏中以外は鳴らさない
   if(AC.state === 'suspended') AC.resume();
-  hit(isDon);
+  hit(isDon, evTime);
   if(el){
     el.classList.add('on');
     clearTimeout(padTimers.get(el));           // 連打でタイマーを積み上げない
@@ -1713,7 +1730,7 @@ addEventListener('keydown', e => {
   if(!G.running) return;          // 演奏中以外はブラウザ側の動作を邪魔しない
   e.preventDefault();
   if(e.repeat) return;
-  tap(k === 'don');
+  tap(k === 'don', null, e.timeStamp);
 });
 
 /* 画面下のボタン。指ごとに touchstart が飛ぶので同時押しもそのまま拾える */
@@ -1735,59 +1752,88 @@ function measurePads(){
 }
 addEventListener('resize', () => { padEdges = null; });
 addEventListener('orientationchange', () => { padEdges = null; });
+addEventListener('scroll', () => { padEdges = null; }, {passive:true});
 
 function padAt(clientX){
   if(!padEdges || !padEdges.length || padEdges[0].right === 0) measurePads();
   for(const p of padEdges){
     if(clientX >= p.left && clientX < p.right) return p;
   }
-  // 枠の外側に落ちた指も、近い側の縁として拾う
+  // 枠の外に落ちた指も、近い側として必ず拾う
   return clientX < padEdges[0].left ? padEdges[0] : padEdges[padEdges.length - 1];
 }
 
-function padHit(clientX){
-  const p = padAt(clientX);
-  if(p) tap(p.don, p.el);
+/*
+ * 画面のどこを叩いたかを、要素ではなく座標だけで決める。
+ * 個々のボタンに任せると、枠のすき間・金縁・ラベルの上に
+ * 指が落ちたぶんがまるごと消えてしまい、連打が抜ける。
+ *   ・譜面より下  → 太鼓パッド（左右位置で 面 / 縁 を判定）
+ *   ・譜面の範囲  → 内側が面、外側が縁
+ */
+/*
+ * 中断・全画面ボタンの領域だけは叩き判定から除く。
+ * ここで e.target を見てはいけない。touch では target が
+ * 「最初に触れた指」のものになるため、端末を持つ指が
+ * 下部に触れているだけで以降の指が全部無効になってしまう。
+ */
+function inGamebar(clientX, clientY){
+  const bar = $('#s-game').querySelector('.gamebar');
+  if(!bar) return false;
+  const r = bar.getBoundingClientRect();
+  return clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right;
+}
+
+function gameInput(clientX, clientY, evTime){
+  if(!G.running) return false;
+  if(inGamebar(clientX, clientY)) return false;
+
+  const cvR = cv.getBoundingClientRect();
+  if(clientY >= cvR.bottom - 2){
+    const p = padAt(clientX);
+    if(p){ tap(p.don, p.el, evTime); return true; }
+    return false;
+  }
+  if(clientY >= cvR.top){
+    const x = (clientX - cvR.left) / cvR.width;
+    tap(x > .25 && x < .75, null, evTime);
+    return true;
+  }
+  return false;
 }
 
 /*
- * 指ごとに独立して拾えるよう、Pointer Events があればそちらを使う。
+ * 指ごとに独立して届く Pointer Events を優先する。
  * touch では、先の指が触れたままだと次の指のイベントが
  * 最初の要素にまとめて届き、取りこぼす端末があるため。
  */
-if(window.PointerEvent){
-  padsEl.addEventListener('pointerdown', e => {
-    if(e.pointerType !== 'mouse') touchMode = true;
-    e.preventDefault();
-    padHit(e.clientX);
-  });
-}else{
-  padsEl.addEventListener('touchstart', e => {
-    touchMode = true;
-    e.preventDefault();
-    for(let i = 0; i < e.changedTouches.length; i++) padHit(e.changedTouches[i].clientX);
-  }, {passive:false});
-  padsEl.addEventListener('mousedown', e => {
-    if(touchMode) return;
-    e.preventDefault();
-    padHit(e.clientX);
-  });
-}
-padsEl.addEventListener('contextmenu', e => e.preventDefault());
-padsEl.addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+/*
+ * タッチ端末では Touch Events を使う。
+ * Pointer Events は指ごとに届くはずだが、iOS では
+ * 2本目以降の pointerdown が落ちることがあり、
+ * 片手だけの連打は通るのに両手だと抜ける、という症状になる。
+ * Touch Events の changedTouches なら、同時に触れた指が必ず全部入る。
+ */
+const HAS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
-/* 譜面を直接タップ：外側＝縁（カッ）, 内側＝面（ドン） */
-function laneHit(clientX){
-  const r = cv.getBoundingClientRect();
-  const p = (clientX - r.left) / r.width;
-  tap(p > .25 && p < .75);
+if(HAS_TOUCH){
+  document.addEventListener('touchstart', e => {
+    touchMode = true;
+    let used = false;
+    for(let i = 0; i < e.changedTouches.length; i++){
+      const t = e.changedTouches[i];
+      if(gameInput(t.clientX, t.clientY, e.timeStamp)) used = true;
+    }
+    if(used && e.cancelable) e.preventDefault();
+  }, {passive:false});
 }
-cv.addEventListener('touchstart', e => {
-  touchMode = true; e.preventDefault();
-  for(const tc of e.changedTouches) laneHit(tc.clientX);
-}, {passive:false});
-cv.addEventListener('mousedown', e => { if(!touchMode) laneHit(e.clientX); });
+
+document.addEventListener('mousedown', e => {
+  if(touchMode) return;
+  if(gameInput(e.clientX, e.clientY, e.timeStamp)) e.preventDefault();
+});
+padsEl.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if(G.running) e.preventDefault(); }, {passive:false});
 
 /* 全画面・中断 */
 $('#fs').onclick = async () => {
