@@ -1175,7 +1175,15 @@ function bindOpts(){
     const el = $('#' + SETTINGS[key].el);
     el.value = get(key);
     const upd = () => {
-      fn(parseFloat(el.value));
+      /*
+       * 入力欄が空・入力途中だと parseFloat が NaN を返す。
+       * NaN が CFG に入ると判定時刻の計算全体が NaN になり、
+       * 全打が不可になる致命的な壊れ方をするため、
+       * 数値でない値は必ず既定値に落とす。
+       */
+      let v = parseFloat(el.value);
+      if(!Number.isFinite(v)) v = SETTINGS[key].def;
+      fn(v);
       $('#' + out).textContent = key === 'off' ? el.value + ' ms' : el.value;
     };
     el.oninput = () => { upd(); saveSettings(); };
@@ -1249,6 +1257,9 @@ const G = {
 
 function startGame(idx){
   if(AC.state === 'suspended') AC.resume();
+  /* 最終防衛線: 過去に保存された壊れた設定が残っていても判定を壊さない */
+  if(!Number.isFinite(CFG.offset)) CFG.offset = 0;
+  if(!(CFG.speed > 0)) CFG.speed = 1.6;
   const c = song.courses[idx];
   G.courseIdx = idx;
   G.course = c;
@@ -1277,8 +1288,7 @@ function startGame(idx){
   }
   G.laBase = minVel > 0 ? 1300 / minVel : 1e9;   // 秒×speed（speedで割って使う）
   BK.s = 0;                                      // 曲・難易度が変わるので背景を焼き直す
-  G.lat = outLat();                              // 出力遅延はここで固定
-  G.clockEst = -1e9;                             // 入力時計→音声時計の対応（loopで推定）
+  G.lat = outLat();                              // 出力遅延の初期値（loopで緩やかに追従）
 
   const first = c.notes.length ? c.notes[0].time : 0;
   const lead = Math.max(2.2, -Math.min(first, 0) + 1.2);
@@ -1343,24 +1353,25 @@ function activeRoll(t){
 }
 
 /*
- * 実際に指が触れた/キーを押した時刻(evTime, performance.now系)で判定する。
- *
- * 従来は「配達の遅れ(lag)を引いて巻き戻す」方式だったが、これは
- * AC.currentTime(音声時計)とperformance.now(CPU時計)を毎回突き合わせる
- * ため、音声時計の量子化(数ms刻みの階段)がそのまま判定ノイズになる。
- * 代わりに2つの時計の対応(clockEst)をloopで継続推定しておき、
- * evTime を直接譜面時刻へ写像する。これで配達遅延も量子化も判定から消え、
- * 巻き戻し上限(400ms)のような打ち切りも不要になる。
+ * 実際に指が触れた/キーを押した時刻で判定する。
+ * 描画で本体が混んでいると処理が数十ミリ秒遅れて呼ばれることがあり、
+ * その遅れをそのまま判定に使うと、特に連符がずれて可・不可になる。
+ * ここは「hit時点の now() から配達の遅れぶんだけ巻き戻す」方式で固定。
+ * （一度、入力時計→音声時計の写像方式に変えたら、ブラウザの音声時計の
+ *   癖に引きずられて全打が系統的にずれる事故を起こした。全打が同じ
+ *   基準 now() を共有する巻き戻し方式は系統ズレが原理的に出ない）
  */
 function hitTime(evTime){
   const t = now();
   if(!evTime) return t;
   const lag = performance.now() - evTime;
-  if(!(lag >= 0) || lag > 400) return t;         // 時計系の異常値は無視
-  if(G.clockEst > -1e8){
-    return evTime / 1000 + G.clockEst - G.startAt - G.lat + CFG.offset;
-  }
-  return t - lag / 1000;                         // 推定前のフォールバック
+  /*
+   * 上限は時計系の異常値をはじくためだけのもの。低スペック端末では
+   * 描画ジャンクで配達が200〜300ms遅れることが普通にあるため、
+   * 短く打ち切ると「正しく押したのに遅い時刻として判定」になる。
+   */
+  if(!(lag >= 0) || lag > 400) return t;        // 異常値は無視
+  return t - lag / 1000;
 }
 
 function hit(isDon, evTime, src){
@@ -1881,12 +1892,13 @@ function loop(){
   }
   lastFrame = p;
   /*
-   * 音声時計と入力時計の対応を推定する。同時に読んだとき
-   * AC.currentTime は量子化のぶん実時間より小さく見えるだけなので、
-   * 差の最大値を追えば真の対応に収束する（曲ごとにリセット）。
+   * 出力遅延の補正値はゆっくり実測に追従させる。
+   * 開始時に一度だけ読むと、AudioContext再開直後の異常値を
+   * 曲全体に固定してしまい、全打が系統的にずれる。
+   * かといって毎回そのまま読むと揺れが判定基準の揺れになる。
+   * 時定数の長い平滑(約0.8秒)なら両方の問題が出ない。
    */
-  const ce = AC.currentTime - p / 1000;
-  if(ce > G.clockEst || ce < G.clockEst - .25) G.clockEst = ce;   // 大きく下がったら時計が飛んだので取り直し
+  G.lat += (outLat() - G.lat) * .02;
   const t = now();
   update(t); render(t);
   requestAnimationFrame(loop);
