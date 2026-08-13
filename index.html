@@ -72,6 +72,57 @@ body{
 .mini:hover{color:var(--gofun);border-color:rgba(244,239,228,.4)}
 .note{color:var(--mute);font-size:11.5px;line-height:2;margin-top:16px}
 
+/* ---- モード選択（シングル / オンライン対戦の対バナー） ---- */
+.modes{display:flex;gap:14px;margin-bottom:22px}
+.mode{
+  flex:1;display:flex;align-items:center;gap:14px;padding:15px 18px;
+  border:0;border-radius:4px;cursor:pointer;font:inherit;color:#fff;text-align:left;
+  position:relative;overflow:hidden;
+  transition:transform .12s,filter .12s;
+}
+.mode:hover{transform:translateY(-2px);filter:brightness(1.07)}
+.mode:active{transform:translateY(1px)}
+.mode:focus-visible{outline:2px solid var(--kin);outline-offset:3px}
+.mode .m-seal{
+  width:46px;height:46px;flex:none;border-radius:50%;
+  display:grid;place-items:center;font-weight:800;font-size:19px;
+  background:rgba(0,0,0,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+}
+.mode .m-txt b{display:block;font-size:15px;letter-spacing:.2em;font-weight:800;white-space:nowrap}
+.mode .m-txt small{display:block;margin-top:5px;font-size:10px;letter-spacing:.1em;opacity:.85;white-space:nowrap}
+.mode.single{
+  background:linear-gradient(160deg,var(--shu2),#a8281c);
+  box-shadow:0 3px 0 #7d1d14,0 8px 22px rgba(217,58,43,.35);
+}
+.mode.versus{
+  background:linear-gradient(160deg,#3f8fd6,#1c4f8c);
+  border:1px solid rgba(232,185,60,.75);
+  box-shadow:0 3px 0 #123a66,0 8px 22px rgba(47,124,196,.4);
+}
+.mode.versus .m-seal{
+  background:linear-gradient(160deg,var(--kin),#c8952a);color:#3a2a05;
+  box-shadow:0 0 14px rgba(232,185,60,.55),inset 0 1px 0 rgba(255,255,255,.4);
+}
+/* 金の光彩の脈動: box-shadowを動かすと重いので、光の層のopacityだけを動かす */
+.mode.versus::before{
+  content:"";position:absolute;inset:-1px;border-radius:4px;pointer-events:none;
+  box-shadow:0 0 22px rgba(232,185,60,.55),inset 0 0 16px rgba(232,185,60,.28);
+  opacity:.15;animation:vsglow 2.2s ease-in-out infinite;
+}
+@keyframes vsglow{0%,100%{opacity:.15}50%{opacity:1}}
+/* ときどき横切る光の帯（transformのみ） */
+.mode.versus::after{
+  content:"";position:absolute;top:-40%;bottom:-40%;left:0;width:38px;pointer-events:none;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.55),transparent);
+  transform:skewX(-18deg) translateX(-80px);
+  animation:vsshine 3s ease-in-out infinite;
+}
+@keyframes vsshine{
+  0%,55%{transform:skewX(-18deg) translateX(-80px)}
+  90%,100%{transform:skewX(-18deg) translateX(560px)}
+}
+@media(max-width:600px){.modes{flex-direction:column}}
+
 /* ================= 曲かんばん（選曲） ================= */
 .stage{
   position:relative;margin:0 -18px 0;padding:0 0 26px;
@@ -572,12 +623,21 @@ body.touch.playing .padlabel{
 
   <!-- 読み込み -->
   <section id="s-load" class="screen on">
+    <div class="modes">
+      <button class="mode single" id="mode-single">
+        <span class="m-seal">鼓</span>
+        <span class="m-txt"><b>シングルプレイ</b><small>下のかんばんから曲を選んで演奏</small></span>
+      </button>
+      <button class="mode versus" id="net-open">
+        <span class="m-seal">VS</span>
+        <span class="m-txt"><b>オンライン対戦</b><small>ルームを作ってみんなで勝負</small></span>
+      </button>
+    </div>
     <div class="libbar">
-      <h2 class="libtitle">曲を えらぶ</h2>
+      <h2 class="libtitle">曲を選ぶ</h2>
       <div class="libtools">
         <span id="lib-status">読み込み中…</span>
         <button class="mini" id="lib-reload">更新</button>
-        <button class="mini" id="net-open">オンライン対戦</button>
       </div>
     </div>
     <div class="stage">
@@ -594,11 +654,11 @@ body.touch.playing .padlabel{
     <div id="railnav" style="display:none">
       <div class="railnav">
         <button class="arw" id="rail-prev" aria-label="前の曲">◀</button>
-        <button class="go" id="rail-go">えらぶ</button>
+        <button class="go" id="rail-go">選ぶ</button>
         <button class="arw" id="rail-next" aria-label="次の曲">▶</button>
       </div>
       <p class="counter" id="np-count"></p>
-      <p class="hint">← → で曲おくり ・ Enter でえらぶ</p>
+      <p class="hint">← → で曲送り ・ Enter で選ぶ</p>
     </div>
 
     <details class="upbox">
@@ -649,11 +709,11 @@ body.touch.playing .padlabel{
         <div class="netstep">
           <span class="stepnum">2</span>
           <div class="stepbody">
-            <label>どちらかをえらぶ</label>
+            <label>どちらかを選ぶ</label>
             <div class="netchoice">
               <div class="netcard">
                 <h3>ルームを作る</h3>
-                <p>あなたが<b>ホスト</b>になります。<br>できた4文字のコードを友だちに伝えてください。</p>
+                <p>あなたが<b>ホスト</b>になります。<br>できた4文字のコードを友達に伝えてください。</p>
                 <button class="btn" id="net-create">ルームを作る</button>
               </div>
               <div class="netcard">
@@ -684,14 +744,14 @@ body.touch.playing .padlabel{
           <div class="slots" id="net-members"></div>
         </div>
         <div class="roombtns">
-          <button class="btn big" id="net-pick">▶ 曲をえらんで対戦をはじめる</button>
+          <button class="btn big" id="net-pick">▶ 曲を選んで対戦を始める</button>
           <button class="btn ghost" id="net-leave">ルームから退出する</button>
         </div>
       </div>
 
       <span id="net-status"></span>
       <div class="netrow" style="margin-top:16px;justify-content:center">
-        <button class="btn ghost" id="net-back">← ふつうの曲えらびにもどる</button>
+        <button class="btn ghost" id="net-back">← 通常の曲選びに戻る</button>
       </div>
     </div>
   </section>
@@ -699,7 +759,7 @@ body.touch.playing .padlabel{
   <!-- 選曲 -->
   <section id="s-select" class="screen">
     <div class="songhead"><h2 id="title">-</h2><p id="subtitle"></p></div>
-    <p class="dlabel">むずかしさを えらぶ</p>
+    <p class="dlabel">難易度を選ぶ</p>
     <div class="diffwrap" id="courses"></div>
     <div class="opts">
       <div class="opt"><label>譜面速度 <span class="val" id="v-speed">1.6</span></label>
@@ -722,7 +782,7 @@ body.touch.playing .padlabel{
     </p>
     <p class="note" id="cfg-note">設定はこの端末に保存され、次回もそのまま使えます。</p>
     <div class="rbtns" style="justify-content:flex-start;margin-top:18px">
-      <button class="btn ghost" id="back-load">別の曲をえらぶ</button>
+      <button class="btn ghost" id="back-load">別の曲を選ぶ</button>
       <button class="mini" id="reset-cfg">設定を初期値に戻す</button>
     </div>
   </section>
@@ -774,10 +834,10 @@ body.touch.playing .padlabel{
       </div>
       <div class="netrank" id="r-net" style="display:none"></div>
       <div class="rbtns">
-        <button class="btn" id="r-room" style="display:none">ルームにもどる</button>
+        <button class="btn" id="r-room" style="display:none">ルームに戻る</button>
         <button class="btn" id="retry">もう一度</button>
-        <button class="btn ghost" id="tosel">難易度をえらぶ</button>
-        <button class="btn ghost" id="tolib">曲をえらぶ</button>
+        <button class="btn ghost" id="tosel">難易度を選ぶ</button>
+        <button class="btn ghost" id="tolib">曲を選ぶ</button>
       </div>
     </div>
   </section>
@@ -1255,6 +1315,8 @@ function renderSelect(){
     audioName ? '♪ ' + audioName : '音源なし（無音で演奏）'].filter(Boolean).join('　/　');
 
   const list = $('#courses'); list.innerHTML = '';
+  /* 並びは従来の左右逆にする。startGame に渡す譜面の番号(i)は変えない */
+  const items = [];
   song.courses.forEach((c, i) => {
     const di = DIFF_IDX[String(c.name).toUpperCase()];
     const d = di === undefined ? 3 : di;
@@ -1275,8 +1337,9 @@ function renderSelect(){
       <div class="stars">${stars}</div>
       <div class="dn">${c.hitCount} ノーツ</div>`;
     b.onclick = () => startGame(i);
-    list.appendChild(b);
+    items.push(b);
   });
+  items.reverse().forEach(b => list.appendChild(b));
   show('s-select');
 
   fitText($('#title'), 21, 12);
@@ -1573,8 +1636,17 @@ function hit(isDon, evTime, src){
    * 次の音符を食って「変なタイミングで不可が出る」主因になるため、
    * 可より早い打は音符を消さず不発にする。遅い側の不可は本家どおり。
    * 残骸の心配は不要: 窓を過ぎた音符はすぐ見逃し不可になる。
+   *
+   * ただし「遅すぎ不可」(可を過ぎて不可窓内: +75〜+108ms)は即決しない。
+   * 3連符など音符間隔が不可窓より狭い譜面では、直前の音符を逃したあと
+   * 次の音符をピッタリ叩いた打が、前の音符の遅すぎ不可として食われて
+   * 「合ってるのに不可」になっていた。そこで遅すぎ不可は候補として
+   * 持ち越し、後続の同色に可以内の打があればそちらを判定する。
+   * 後続に候補がなければ従来どおり遅すぎ不可（本家準拠のまま）。
+   * 食われなかった前の音符は窓が閉じ次第すぐ見逃し不可になるので、
+   * 逃した事実が消えるわけではない。
    */
-  let target = null, bd = 0;
+  let target = null, bd = 0, lateBad = null;
   for(let i = G.liveFrom; i < ns.length; i++){
     const n = ns[i];
     if(n.type >= 5 || n.done) continue;
@@ -1583,9 +1655,14 @@ function hit(isDon, evTime, src){
     const d = t - n.time;
     if(d < -JUDGE.OK) break;           // まだ早すぎる → 不発（消さない）
     if(d > JUDGE.BAD) continue;        // すでに窓を過ぎた
-    target = n; bd = Math.abs(d);
-    break;                             // 窓内で最古の音符に確定
+    if(d > JUDGE.OK){                  // 遅すぎ不可の候補 → 後続を先に見る
+      if(!lateBad) lateBad = n;
+      continue;
+    }
+    target = n; bd = Math.abs(d);      // 良/可の窓内で最古の音符に確定
+    break;
   }
+  if(!target && lateBad){ target = lateBad; bd = Math.abs(t - lateBad.time); }
 
   /*
    * 比較は必ず「巻き戻し後の譜面時刻」で行うこと。performance.now() だと
@@ -2760,8 +2837,8 @@ function netRoomUI(){
   $('#net-role').textContent = NET.mode === 'host'
     ? (alone
         ? '上のコードを友だちに伝えて、参加を待ちましょう。そろわなくても1人で始められます。'
-        : 'メンバーがそろったら「曲をえらんで対戦をはじめる」を押してください。全員でいっせいに始まります。')
-    : 'ホストが曲をえらぶと、自動でダウンロードされて対戦がはじまります。このまま待っていてください。';
+        : 'メンバーが揃ったら「曲を選んで対戦を始める」を押してください。全員で一斉に始まります。')
+    : 'ホストが曲を選ぶと、自動でダウンロードされて対戦が始まります。このまま待っていてください。';
   $('#net-pick').style.display = NET.mode === 'host' ? '' : 'none';
   $('#net-count').textContent = NET.members.length + '人 / ' + NET_MAX + '人';
   const slots = [];
@@ -2778,6 +2855,10 @@ function netRoomUI(){
   $('#net-members').innerHTML = slots.join('');
 }
 
+/* シングルプレイ側は「この画面がそれ」なので、押したら曲かんばんへ誘導する */
+$('#mode-single').onclick = () => {
+  $('#lib').scrollIntoView({behavior:'smooth', block:'center'});
+};
 $('#net-open').onclick = () => {
   if(!$('#net-name').value) $('#net-name').value = ($('#up-who').value || '').slice(0, 12);
   netRoomUI(); netStatus(''); show('s-net');
