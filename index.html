@@ -1047,7 +1047,11 @@ const courseLabel = c => COURSE_JA[String(c.name).toUpperCase()] || c.name;
 /* =========================================================
    2. 音まわり
 ========================================================= */
-const AC = new (window.AudioContext || window.webkitAudioContext)();
+/* 低遅延指定で作る。古いWebKitはオプションを受け付けないので握りつぶす */
+const AC = (() => {
+  const C = window.AudioContext || window.webkitAudioContext;
+  try{ return new C({latencyHint:'interactive'}); }catch(e){ return new C(); }
+})();
 const bgmGain = AC.createGain(), seGain = AC.createGain();
 bgmGain.connect(AC.destination); seGain.connect(AC.destination);
 bgmGain.gain.value = .7; seGain.gain.value = .6;
@@ -1626,7 +1630,29 @@ function startGame(idx){
  * 気づきにくいが、連符では窓が実質潰れて抜けまくる。
  * 描画も同じ時計を使うので、音符の到達も聞こえる音に揃う。
  */
-const outLat = () => clamp((AC.outputLatency || 0) + (AC.baseLatency || 0), 0, .5);
+/*
+ * 出力遅延の取得は2系統の大きい方を使う。
+ *  a) outputLatency + baseLatency（Chrome系は正直に報告する）
+ *  b) getOutputTimestamp: 「いまデバイスから実際に出ているサンプルの音声時刻」を
+ *     返すので、currentTime（これからレンダリングする時刻）との差が
+ *     出力パイプラインに溜まっている遅延の実測になる。
+ *     iOS Safari は outputLatency を報告しない(0)ため、こちらが頼り。
+ *     未実装・値が変な環境では 0 になるだけで害はない。
+ * どちらも読み値は揺れるが、loop側の時定数の長い平滑がならす。
+ */
+function outLat(){
+  let l = (AC.outputLatency || 0) + (AC.baseLatency || 0);
+  if(AC.getOutputTimestamp){
+    try{
+      const ts = AC.getOutputTimestamp();
+      if(ts && ts.contextTime > 0){
+        const est = AC.currentTime - ts.contextTime;
+        if(est > l && est < .5) l = est;
+      }
+    }catch(e){}
+  }
+  return clamp(l, 0, .5);
+}
 
 /*
  * 「押せているのに不可」の最後の抜け道対策。
@@ -2228,7 +2254,7 @@ function drawDrum(x, y){
  * フレーム時間を見て、遅い状態が続いたら自動で軽量表示に落とす。
  * タブ切り替え等の一発の大きな間隔はノイズなので数えない。
  */
-let lastFrame = 0, slowRun = 0;
+let lastFrame = 0, slowRun = 0, frameLead = 1 / 60;
 function loop(){
   if(!G.running) return;
   const p = performance.now();
@@ -2241,6 +2267,8 @@ function loop(){
     if(d > 30 && d < 500){ jankGrace = Math.min(d / 1000, .35); jankUntil = p + d + 150; }
     /* 観測した入力遅れはゆっくり忘れる（約1.5秒で消える） */
     if(inLagMax > 0) inLagMax = Math.max(inLagMax - Math.min(d, 100) / 1000 * .25, 0);
+    /* 描画先読み量 = 平滑したフレーム間隔（60Hzなら約16.7ms） */
+    if(d > 0 && d < 100) frameLead += (Math.min(d, 40) / 1000 - frameLead) * .05;
   }
   lastFrame = p;
   /*
@@ -2252,7 +2280,13 @@ function loop(){
    */
   G.lat += (outLat() - G.lat) * .02;
   const t = now();
-  update(t); render(t);
+  update(t);
+  /*
+   * 描画だけ1フレームぶん先の状態を描く。rAFで計算した絵が実際に画面へ
+   * 出るのは次のvsync（約1フレーム後）なので、そのままだと音符の到達が
+   * 聞こえる音より常に1フレーム遅れて見える。判定(update)は実時刻 t のまま。
+   */
+  render(t + frameLead);
   requestAnimationFrame(loop);
 }
 
