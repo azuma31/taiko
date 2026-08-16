@@ -17,6 +17,10 @@
   --wa:#e9dcc0;         /* 和紙 */
   --mute:#7d8aa3;
   --line:rgba(244,239,228,.10);
+  --card:rgba(255,255,255,.03);          /* カードの下地 */
+  --r:14px;                              /* 角丸（カード） */
+  --r-s:9px;                             /* 角丸（ボタン・入力） */
+  --shadow:0 10px 30px rgba(0,0,0,.35);  /* カードの浮き */
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -30,10 +34,12 @@ body{
   -webkit-text-size-adjust:100%;
   -webkit-font-smoothing:antialiased;
 }
-#app{max-width:940px;margin:0 auto;padding:26px 18px 48px}
+#app{max-width:940px;margin:0 auto;
+  padding:22px 18px calc(env(safe-area-inset-bottom,0px) + 48px)}
 
 /* ---- 見出し ---- */
-.brand{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:22px;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
 .brand .seal{
   width:44px;height:44px;flex:none;border-radius:50%;
   background:linear-gradient(160deg,var(--shu2),#a8281c);
@@ -49,7 +55,7 @@ body{
 
 /* ---- 共通パーツ ---- */
 .btn{
-  display:inline-block;padding:12px 30px;border:0;border-radius:2px;
+  display:inline-block;padding:13px 30px;border:0;border-radius:var(--r-s);
   background:linear-gradient(180deg,var(--shu2),#b62e21);color:#fff;
   font:inherit;font-weight:800;letter-spacing:.16em;font-size:13px;cursor:pointer;
   box-shadow:0 2px 0 #7d1d14,0 6px 18px rgba(217,58,43,.3);
@@ -65,8 +71,8 @@ body{
 .btn.ghost:hover{background:rgba(244,239,228,.07)}
 .btn:focus-visible{outline:2px solid var(--kin);outline-offset:3px}
 .mini{
-  border:1px solid rgba(244,239,228,.2);background:transparent;color:var(--mute);
-  font:inherit;font-size:11px;padding:6px 14px;border-radius:2px;cursor:pointer;letter-spacing:.14em;
+  border:1px solid rgba(244,239,228,.2);background:rgba(255,255,255,.03);color:var(--mute);
+  font:inherit;font-size:11px;padding:8px 15px;border-radius:var(--r-s);cursor:pointer;letter-spacing:.14em;
   transition:.15s;
 }
 .mini:hover{color:var(--gofun);border-color:rgba(244,239,228,.4)}
@@ -298,7 +304,7 @@ body{
 .courses{display:grid;gap:8px}
 .course{
   position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:17px 20px;border:1px solid var(--line);border-radius:2px;
+  padding:17px 20px;border:1px solid var(--line);border-radius:var(--r);
   background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
   cursor:pointer;font:inherit;color:inherit;text-align:left;overflow:hidden;
   transition:background .16s,border-color .16s,transform .16s;
@@ -315,10 +321,10 @@ body{
 .course .lv{color:var(--kin);font-size:12px;letter-spacing:.16em;flex:none;font-weight:700}
 .course.busy{opacity:.45;pointer-events:none}
 .empty{padding:38px 20px;text-align:center;color:var(--mute);font-size:12.5px;line-height:2.2;
-  border:1px dashed rgba(244,239,228,.16);border-radius:2px}
+  border:1px dashed rgba(244,239,228,.16);border-radius:var(--r)}
 
 /* ---- 投稿フォーム ---- */
-.upbox{margin-top:26px;border:1px solid var(--line);border-radius:2px;background:rgba(255,255,255,.02)}
+.upbox{margin-top:26px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
 .upbox summary{
   padding:15px 20px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.18em;
   color:var(--mute);list-style:none;transition:.15s;
@@ -329,7 +335,7 @@ body{
 .upform{padding:20px;display:grid;gap:15px}
 .upform label{display:block;font-size:10.5px;letter-spacing:.18em;color:var(--mute)}
 .upform input{
-  display:block;width:100%;margin-top:8px;padding:11px 13px;border-radius:2px;
+  display:block;width:100%;margin-top:8px;padding:11px 13px;border-radius:var(--r-s);
   border:1px solid rgba(244,239,228,.16);background:rgba(0,0,0,.3);color:var(--gofun);
   font:inherit;font-size:13px;transition:border-color .15s;
 }
@@ -338,7 +344,7 @@ body{
 .upform .btn{justify-self:start;margin-top:4px}
 
 #up-drop{
-  margin-top:8px;padding:26px 18px;text-align:center;border-radius:2px;
+  margin-top:8px;padding:26px 18px;text-align:center;border-radius:var(--r-s);
   border:1px dashed rgba(244,239,228,.24);background:rgba(0,0,0,.22);transition:.16s;
 }
 #up-drop.hot{border-color:var(--kin);background:rgba(232,185,60,.09)}
@@ -408,12 +414,32 @@ body{
   white-space:nowrap;overflow:hidden}
 #courses{grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}
 .opts{
-  margin-top:28px;padding-top:24px;border-top:1px solid var(--line);
+  margin-top:28px;padding:22px 20px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--card);box-shadow:var(--shadow);
   display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
 }
 .opt label{display:block;font-size:10.5px;letter-spacing:.18em;color:var(--mute);margin-bottom:9px}
 .opt .val{float:right;color:var(--gofun);letter-spacing:.05em}
-.opt input[type=range]{width:100%;accent-color:var(--shu);height:3px}
+.opt input[type=range]{
+  width:100%;accent-color:var(--shu);height:22px;background:transparent;
+  -webkit-appearance:none;appearance:none;
+}
+.opt input[type=range]::-webkit-slider-runnable-track{
+  height:4px;border-radius:99px;background:rgba(244,239,228,.16);
+}
+.opt input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;margin-top:-8px;border-radius:50%;
+  background:radial-gradient(circle at 50% 32%,var(--shu2),#a8281c);
+  border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+.opt input[type=range]::-moz-range-track{
+  height:4px;border-radius:99px;background:rgba(244,239,228,.16);
+}
+.opt input[type=range]::-moz-range-thumb{
+  width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 50% 32%,var(--shu2),#a8281c);
+  border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
 .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gofun);
   letter-spacing:.08em;cursor:pointer}
 .chk input{accent-color:var(--shu);width:15px;height:15px}
@@ -485,12 +511,12 @@ body{
 .calcount{font-size:30px;font-weight:800;color:#ffdf6e;min-height:1.3em;margin:14px 0}
 
 /* ---- ゲーム ---- */
-#cv{width:100%;display:block;border-radius:2px;background:#070a12;touch-action:none;
+#cv{width:100%;display:block;border-radius:10px;background:#070a12;touch-action:none;
   box-shadow:0 10px 40px rgba(0,0,0,.5);-webkit-user-select:none;user-select:none;
   -webkit-tap-highlight-color:transparent}
 /* 太鼓を模した操作パッド */
 #pads{
-  display:none;grid-template-columns:1fr 1.25fr 1.25fr 1fr;gap:0;margin-top:12px;
+  display:none;grid-template-columns:1fr 1.45fr 1.45fr 1fr;gap:0;margin-top:12px;
   touch-action:none;border-radius:70px/64px;overflow:hidden;
   background:#241a10;padding:7px;
   box-shadow:0 6px 0 rgba(0,0,0,.5),0 14px 30px rgba(0,0,0,.5),
@@ -514,7 +540,7 @@ body.touch #pads{display:grid}
 #pads .ka:last-child{border-radius:0 64px 64px 0}
 #pads .don{box-shadow:inset 1px 0 0 rgba(0,0,0,.3),inset -1px 0 0 rgba(0,0,0,.3)}
 .padlabel{
-  display:none;grid-template-columns:1fr 1.25fr 1.25fr 1fr;margin-top:7px;
+  display:none;grid-template-columns:1fr 1.45fr 1.45fr 1fr;margin-top:7px;
   color:var(--mute);font-size:9.5px;letter-spacing:.18em;text-align:center;
 }
 body.touch .padlabel{display:grid}
@@ -542,22 +568,33 @@ body.touch.playing .gamebar{
   right:calc(env(safe-area-inset-right,0px) + 12px);
   top:calc(env(safe-area-inset-top,0px) + 7px);
 }
-body.touch.playing .gamebar .mini{padding:8px 15px;font-size:11px}
+body.touch.playing .gamebar .mini{padding:11px 18px;font-size:12px}
 body.touch.playing #g-title{
   min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10.5px;
 }
+/*
+ * 譜面(canvas)は幅いっぱい・縦は自然な比率のまま置き、
+ * 残りの縦を太鼓パッドが全部使う。以前の max-height:34vh は
+ * 横向きのとき譜面を強制的に縮めてしまっていた（左右に余白ができて
+ * 「譜面が小さすぎる」症状の正体）。
+ */
 body.touch.playing #cv{
-  flex:0 0 auto;width:100%;max-width:940px;max-height:34vh;object-fit:contain;
+  flex:0 1 auto;width:100%;max-width:1100px;height:auto;
+  max-height:46vh;object-fit:contain;
   margin-left:auto;margin-right:auto;
 }
-body.touch.playing.net2 #cv{max-height:52vh}   /* 対戦は相手レーンぶん縦を広く */
+body.touch.playing.net2 #cv{max-height:60vh}   /* 対戦は相手レーンぶん縦を広く */
+@media(orientation:landscape){
+  body.touch.playing #cv{max-height:58vh}
+  body.touch.playing.net2 #cv{max-height:68vh}
+}
 body.touch.playing #pads{
-  flex:0 1 auto;width:100%;max-width:940px;
-  height:clamp(170px,44vh,430px);min-height:120px;
-  grid-template-rows:1fr;margin:auto auto 0;padding:9px;
+  flex:1 1 auto;width:100%;max-width:1100px;
+  height:auto;min-height:110px;
+  grid-template-rows:1fr;margin:8px auto 0;padding:9px;
   border-radius:96px/86px;
 }
-body.touch.playing #pads button{padding:0;font-size:clamp(15px,4.4vw,26px)}
+body.touch.playing #pads button{padding:0;font-size:clamp(16px,4.8vw,30px)}
 body.touch.playing #pads .ka:first-child{border-radius:88px 0 0 88px}
 body.touch.playing #pads .ka:last-child{border-radius:0 88px 88px 0}
 body.touch.playing .padlabel{
@@ -573,7 +610,7 @@ body.touch.playing .padlabel{
 }
 .rank.clear{color:var(--kin);text-shadow:0 0 32px rgba(232,185,60,.45)}
 .rank.fail{color:var(--mute)}
-.rows{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.rows{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
 .rows div{display:flex;justify-content:space-between;align-items:center;
   padding:13px 18px;background:#0e1423;font-size:15px;font-weight:700}
 .rows div span:first-child{color:var(--mute);letter-spacing:.18em;font-size:11px;font-weight:400}
@@ -582,7 +619,7 @@ body.touch.playing .padlabel{
 .rbtns{display:flex;gap:10px;justify-content:center;margin-top:26px}
 
 @media(max-width:720px){
-  #app{padding:16px 12px 32px}
+  #app{padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 32px)}
   .stage{margin:0 -12px 0;padding:0 0 20px}
   .maku{height:20px}
   .stagein{padding-top:22px}
@@ -593,9 +630,11 @@ body.touch.playing .padlabel{
   .nowplate b{font-size:17px}
   .railnav .go{width:84px;height:84px;font-size:14px}
   .railnav .arw{width:42px;height:42px}
-  #pads button{padding:40px 0 38px}
-  #cv{max-height:38vh;object-fit:contain}
-  body.net2 #cv{max-height:56vh}
+  #pads button{padding:48px 0 46px;font-size:17px}
+  #cv{max-height:42vh;object-fit:contain}
+  body.net2 #cv{max-height:60vh}
+  .netcode{font-size:40px}
+  .btn.big{width:100%}
   .diff{width:104px}
   .diff .dh{font-size:14px}
   .brand h1{font-size:16px;letter-spacing:.3em}
@@ -735,8 +774,11 @@ body.touch.playing .padlabel{
         <div class="roomhero">
           <span class="roomlabel">ルームコード</span>
           <div class="netcode" id="net-code-show"></div>
-          <button class="mini" id="net-copy">コードをコピー</button>
-          <p class="roomtip">このコードを友だちに伝えると、同じルームに入れます</p>
+          <div class="netrow" style="justify-content:center;margin-top:0">
+            <button class="mini" id="net-copy">コードをコピー</button>
+            <button class="mini" id="net-invite">招待リンクをコピー</button>
+          </div>
+          <p class="roomtip">コードを伝えるか、招待リンクを送ると同じルームに入れます</p>
         </div>
         <div class="roomstate" id="net-role"></div>
         <div class="roomband">
@@ -774,11 +816,12 @@ body.touch.playing .padlabel{
       <div class="opt">
         <label class="chk" style="margin-bottom:9px"><input type="checkbox" id="auto"> オート演奏</label>
         <label class="chk"><input type="checkbox" id="loose"> 判定をゆるめる（1.4倍）</label>
+        <small id="assist-net" style="display:none;color:var(--kin);font-size:10.5px;letter-spacing:.08em;margin-top:8px">オンライン対戦では使えません</small>
       </div>
     </div>
     <p class="note">
       PC: <b>F / J</b> = 面（ドン）, <b>D / K</b> = 縁（カッ）, <b>Esc</b> = 中断。<br>
-      スマホ・タブレット: 演奏中は画面いっぱいの太鼓（両端が縁＝カッ、内側2つが面＝ドン）。太鼓のまわりの余白も叩き判定に入ります。譜面の内側/外側を直接タップしても叩けます。
+      スマホ・タブレット: 演奏中は画面いっぱいの太鼓（両端が縁＝カッ、内側2つが面＝ドン）。太鼓のまわりの余白も叩き判定に入ります。譜面の内側/外側を直接タップしても叩けます。<b>横向きにすると譜面が大きく表示されます。</b>
     </p>
     <p class="note" id="cfg-note">設定はこの端末に保存され、次回もそのまま使えます。</p>
     <div class="rbtns" style="justify-content:flex-start;margin-top:18px">
@@ -1340,6 +1383,17 @@ function renderSelect(){
     items.push(b);
   });
   items.reverse().forEach(b => list.appendChild(b));
+
+  /* オンライン対戦中はオート演奏・判定ゆるめを使えない（公平のため） */
+  const inNet = netOn();
+  for(const id of ['auto', 'loose']){
+    const el = $('#' + id);
+    el.disabled = inNet;
+    el.closest('label').style.opacity = inNet ? '.4' : '';
+  }
+  const an = $('#assist-net');
+  if(an) an.style.display = inNet ? '' : 'none';
+
   show('s-select');
 
   fitText($('#title'), 21, 12);
@@ -1506,6 +1560,8 @@ function startGame(idx){
   /* 最終防衛線: 過去に保存された壊れた設定が残っていても判定を壊さない */
   if(!Number.isFinite(CFG.offset)) CFG.offset = 0;
   if(!(CFG.speed > 0)) CFG.speed = 1.6;
+  /* オンライン対戦は公平のためオート演奏・判定ゆるめを無効にする */
+  G.noAssist = netOn() && NET.launching;
   applyLayout();
   document.body.classList.toggle('net2', LANE2);
   const c = song.courses[idx];
@@ -1520,7 +1576,7 @@ function startGame(idx){
 
   const di = DIFF_IDX[String(c.name).toUpperCase()];
   G.diffIdx = di === undefined ? 3 : di;
-  const w = JUDGE_TABLE[G.diffIdx], k = CFG.loose ? 1.4 : 1;
+  const w = JUDGE_TABLE[G.diffIdx], k = (CFG.loose && !G.noAssist) ? 1.4 : 1;
   JUDGE = {GOOD:w.GOOD * k, OK:w.OK * k, BAD:w.BAD * k};
 
   /*
@@ -1571,6 +1627,18 @@ function startGame(idx){
  * 描画も同じ時計を使うので、音符の到達も聞こえる音に揃う。
  */
 const outLat = () => clamp((AC.outputLatency || 0) + (AC.baseLatency || 0), 0, .5);
+
+/*
+ * 「押せているのに不可」の最後の抜け道対策。
+ * 低スペック端末でジャンク（描画の長い停止）が起きると、
+ * その間の入力イベントは正しい時刻付きで溜まるが、ブラウザによっては
+ * 溜まった入力より先に rAF が走ることがある。すると update() が
+ * 「窓が閉じた」として音符を見逃し不可にした直後に、巻き戻すと窓内だった
+ * 正しい打が届き、消えた音符を叩けず不可だけが残る（3連符で顕著）。
+ * 対策: 直近のフレーム間隔の跳ねと、実際に観測した入力配達の遅れのぶんだけ、
+ * 見逃し不可の確定を先送りする。普段は従来どおり +50ms のまま。
+ */
+let jankUntil = 0, jankGrace = 0, inLagMax = 0;
 /* 出力遅延は曲の開始時に一度だけ測って固定する。演奏中に毎回読むと
    値の揺れがそのまま判定基準の揺れになり、良(±25ms)を外す原因になる */
 const now = () => AC.currentTime - G.startAt - G.lat + CFG.offset;
@@ -1619,6 +1687,7 @@ function hitTime(evTime){
    * 短く打ち切ると「正しく押したのに遅い時刻として判定」になる。
    */
   if(!(lag >= 0) || lag > 400) return t;        // 異常値は無視
+  if(lag / 1000 > inLagMax) inLagMax = Math.min(lag / 1000, .35);   // 配達遅れの実測を記録
   return t - lag / 1000;
 }
 
@@ -1726,13 +1795,16 @@ function flash(txt, n){ G.judgeTxt = {txt, t:performance.now()}; netOnJudge(txt,
  */
 function update(t){
   const ns = G.course.notes;
+  /* ジャンク直後・入力遅延の観測中は、見逃し不可の確定をそのぶん待つ */
+  const grace = .05 + Math.min(Math.max(
+    performance.now() < jankUntil ? jankGrace : 0, inLagMax), .35);
   while(G.liveFrom < ns.length && ns[G.liveFrom].done) G.liveFrom++;
   for(let i = G.liveFrom; i < ns.length; i++){
     const n = ns[i];
     if(n.time > t) break;
     if(n.done) continue;
     if(n.type < 5){
-      if(CFG.auto && t >= n.time){
+      if(CFG.auto && !G.noAssist && t >= n.time){
         const isDon = n.type === T.DON || n.type === T.DONB;
         hit(isDon, 0); continue;
       }
@@ -1743,9 +1815,9 @@ function update(t){
        * 遅れて届いた正しい打が「もう消えた音符」を叩いて
        * 不可になることはない。50msの表示遅れは知覚できない。
        */
-      if(t > n.time + JUDGE.BAD + .05) miss(n);
+      if(t > n.time + JUDGE.BAD + grace) miss(n);
     }else{
-      if(CFG.auto && t >= n.time && t <= n.end){
+      if(CFG.auto && !G.noAssist && t >= n.time && t <= n.end){
         if(!n.lastAuto || t - n.lastAuto > .07){ n.lastAuto = t; hit(true, 0); }
       }
       if(t > n.end) n.done = true;
@@ -1911,6 +1983,7 @@ function render(t){
   cx.textAlign = 'right'; cx.fillStyle = '#f4efe4'; cx.font = '800 33px system-ui';
   cx.fillText(String(G.score).padStart(7, '0'), PANEL_W - 18, FOOT_Y + 60);
   netScores();
+  netDeadBanner();
   if(t < 0){
     cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,255,255,.7)';
     cx.font = '700 22px system-ui';
@@ -2158,6 +2231,10 @@ function loop(){
     if(d > 27 && d < 500) slowRun++;
     else if(d <= 27) slowRun = Math.max(slowRun - 2, 0);
     if(!lowfx && slowRun > 40){ lowfx = true; fitCanvas(); }
+    /* ジャンクを検知したら、その長さぶん見逃し不可の確定を待つ */
+    if(d > 30 && d < 500){ jankGrace = Math.min(d / 1000, .35); jankUntil = p + d + 150; }
+    /* 観測した入力遅れはゆっくり忘れる（約1.5秒で消える） */
+    if(inLagMax > 0) inLagMax = Math.max(inLagMax - Math.min(d, 100) / 1000 * .25, 0);
   }
   lastFrame = p;
   /*
@@ -2524,11 +2601,11 @@ function netGo(course){
   NET.dead = false;
   NET.launching = true;
   clearInterval(NET.tick);
-  NET.tick = setInterval(netTickFn, 400);
+  NET.tick = setInterval(netTickFn, 250);
   startGame(course);
 }
 
-/* ---- 演奏中のスコア共有（400ms間隔・ホストがまとめて配る） ---- */
+/* ---- 演奏中のスコア共有（250ms間隔・ホストがまとめて配る） ---- */
 function netTickFn(){
   if(!netOn() || !G.running) return;
   if(NET.mode === 'guest'){
@@ -2555,7 +2632,11 @@ function netOnJudge(txt, n){
   }
 }
 function netRelayJudge(id, k, i){
-  netCast({t:'jdb', id, k, i});
+  /* 送り主本人には返さない（本人の画面ではもう見えている。帯域と遅延の節約） */
+  for(const [pid, r] of NET.conns){
+    if(pid === id) continue;
+    try{ if(r.conn.open) r.conn.send({t:'jdb', id, k, i}); }catch(e){}
+  }
   netPopJudge(id, k, i);
 }
 /*
@@ -2591,7 +2672,13 @@ function drawOppLane(t){
   if(G.laBase < 1e9){
     const minVel = 1300 / G.laBase;
     const past = (JUDGE_X - PANEL_W + 90) / (minVel * CFG.speed);
-    while(NET.oppFrom < ns.length && ns[NET.oppFrom].time < t - past) NET.oppFrom++;
+    /* 連打は終端(end)が画面に残っている間は飛ばさない。
+       開始時刻だけで進めると、長い連打の帯が相手レーンから消えてしまう */
+    while(NET.oppFrom < ns.length){
+      const n0 = ns[NET.oppFrom];
+      if(Math.max(n0.time, n0.end || 0) >= t - past) break;
+      NET.oppFrom++;
+    }
   }else NET.oppFrom = 0;
 
   for(let k = 0; k < OPP_N; k++){
@@ -2696,6 +2783,11 @@ function drawOppPlate(){
     }else{
       cx.fillStyle = '#ffdf6e'; cx.font = '800 22px system-ui';
       cx.fillText(sc ? (sc.s | 0).toLocaleString() : '0', 122, cy + 24);
+      const cb = sc ? (sc.c | 0) : 0;
+      if(cb >= 10){
+        cx.fillStyle = '#f0c04b'; cx.font = '800 15px system-ui';
+        cx.fillText(cb + ' コンボ', 122, cy + 48);
+      }
     }
   }
 }
@@ -2735,6 +2827,15 @@ function netScores(){
   }
   while(NET.pops.length && nowMs - NET.pops[0].at > 900) NET.pops.shift();
   cx.textAlign = 'left';
+}
+
+/* 演奏中に自分の通信が切れたときの帯。相手の情報は更新されないことを明示する */
+function netDeadBanner(){
+  if(!netOn() || !NET.launching || !NET.dead) return;
+  cx.fillStyle = 'rgba(140,40,30,.92)';
+  cx.fillRect(PANEL_W, FOOT_Y + 6, 470, 30);
+  cx.fillStyle = '#ffd9d2'; cx.font = '700 15px system-ui'; cx.textAlign = 'left';
+  cx.fillText('⚠ 通信が切れました。演奏は続けられます（結果は自分のみ）', PANEL_W + 12, FOOT_Y + 27);
 }
 
 /* ---- 結果とランキング ---- */
@@ -2820,9 +2921,35 @@ function netLeave(silent){
   if(!silent) netStatus('ルームから退出しました');
 }
 
-/* タブを閉じる・別ページへ移動 → peerを破棄して相手側に即 close を届かせる */
-addEventListener('pagehide',     () => { try{ NET.peer && NET.peer.destroy(); }catch(e){} });
+/*
+ * タブを閉じる・別ページへ移動 → peerを破棄して相手側に即 close を届かせる。
+ * ただし iOS はアプリ切り替えや一時的にブラウザを閉じただけでも pagehide が
+ * 飛ぶ（bfcache 行き = persisted）。ここで破棄すると、戻ってきたときに
+ * 接続だけ死んだ半端な状態になり、点数や相手レーンが固まって見える。
+ * 本当に閉じたとき（persisted でない）だけ破棄し、一時退避は心拍の
+ * タイムアウト（12秒）に任せる。
+ */
+addEventListener('pagehide', e => {
+  if(e.persisted) return;
+  try{ NET.peer && NET.peer.destroy(); }catch(err){}
+});
 addEventListener('beforeunload', () => { try{ NET.peer && NET.peer.destroy(); }catch(e){} });
+
+/* 一時退避から戻ってきたとき: 接続が死んでいたら半端な状態を残さず片付ける */
+addEventListener('pageshow', () => {
+  if(!netOn()) return;
+  const p = NET.peer;
+  const broken = !p || p.destroyed ||
+    (NET.mode === 'guest' && (!NET.host || !NET.host.open));
+  if(!broken){
+    if(p && p.disconnected){ try{ p.reconnect(); }catch(e){} }
+    return;
+  }
+  if(G.running){ NET.dead = true; return; }   // 演奏中は続行。結果は自分のみ
+  netLeave(true);
+  netStatus('通信が切れたためルームから退出しました。作り直すか、もう一度参加してください。');
+  netRoomUI();
+});
 
 /* ---- ルーム画面のUI ---- */
 function netRoomUI(){
@@ -2874,6 +3001,16 @@ $('#net-copy').onclick   = async () => {
     $('#net-copy').textContent = '長押しでコピーしてください';
   }
   setTimeout(() => { $('#net-copy').textContent = 'コードをコピー'; }, 2000);
+};
+$('#net-invite').onclick = async () => {
+  const url = location.origin + location.pathname + '#room=' + NET.code;
+  try{
+    await navigator.clipboard.writeText(url);
+    $('#net-invite').textContent = 'コピーしました ✓';
+  }catch(e){
+    prompt('この招待リンクをコピーして送ってください', url);
+  }
+  setTimeout(() => { $('#net-invite').textContent = '招待リンクをコピー'; }, 2000);
 };
 $('#net-back').onclick   = () => show('s-load');
 $('#net-pick').onclick   = () => show('s-load');
@@ -3550,6 +3687,36 @@ function setupLibraryUI(){
 ========================================================= */
 setupLibraryUI();
 bindOpts();
+
+/* 対戦のなまえは端末に保存して次回も使う */
+try{
+  const nm = localStorage.getItem('taiko.netname');
+  if(nm) $('#net-name').value = nm;
+}catch(e){}
+$('#net-name').addEventListener('change', () => {
+  try{ localStorage.setItem('taiko.netname', $('#net-name').value.trim()); }catch(e){}
+});
+
+/*
+ * 招待リンク（…#room=XXXX）で開かれたら、コードを入れて対戦画面へ。
+ * なまえが保存済みならそのまま参加まで進める。
+ * 読み取ったらハッシュは消す（再読み込みで勝手に再参加しないように）。
+ */
+{
+  const m = (location.hash || '').match(/room=([A-Za-z0-9]{4})/);
+  if(m){
+    history.replaceState(null, '', location.pathname + location.search);
+    const code = m[1].toUpperCase();
+    $('#net-code').value = code;
+    netRoomUI(); show('s-net');
+    if(($('#net-name').value || '').trim()){
+      netJoin();
+    }else{
+      netStatus('なまえを入れて「参加する」を押すと、ルーム ' + code + ' に入れます');
+      $('#net-name').focus();
+    }
+  }
+}
 
 let fitTimer = 0;
 addEventListener('resize', () => {
